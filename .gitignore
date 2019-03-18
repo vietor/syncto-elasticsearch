@@ -1,0 +1,12 @@
+/.aproject
+/release
+/project
+/build
+/target
+/test*
+/logs
+/data
+/G*
+/build
+/.gradle
+

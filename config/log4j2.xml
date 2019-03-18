@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn">
+    <Properties>
+        <Property name="logDir">./logs</Property>
+    </Properties>
+
+    <Appenders>
+        <RollingFile name="fileLogger" fileName="${logDir}/mongodb-sync.log" filePattern="${logDir}/mongodb-sync-%d{yyyyMMddHHmmss}.log">
+            <PatternLayout>
+                <pattern>%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%p %c{1}: %m%n" />
+        </Console>
+    </Appenders>
+
+    <Loggers>
+      <Logger name="org.eclipse.jetty" level="WARN" />
+      <Logger name="org.mongodb.driver" level="WARN" />
+      <Logger name="org.elasticsearch" level="ERROR" />
+
+      <Root level="INFO" additivity="false">
+        <appender-ref ref="console" />
+        <appender-ref ref="fileLogger" />
+      </Root>
+    </Loggers>
+</Configuration>

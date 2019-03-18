@@ -1,0 +1,41 @@
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'application'
+
+version='latest'
+sourceCompatibility = 1.8
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.12.6'
+    compile 'org.apache.logging.log4j:log4j-jcl:2.11.2'
+    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.2'
+    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.12:2.9.6'
+    compile 'org.eclipse.jetty:jetty-server:9.4.11.v20180605'
+    compile 'org.mongodb:mongo-java-driver:3.8.0'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
+}
+
+mainClassName = "MongodbSync"
+
+task assembly(type: Jar) {
+    baseName = project.name + '-assembly'
+    from {
+        configurations.compile.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    with jar
+
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
+task copyToLib(type: Copy) {
+    into "lib"
+    from configurations.runtime
+}
