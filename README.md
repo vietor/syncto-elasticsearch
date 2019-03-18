@@ -161,3 +161,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
     ]
 }
 ```
+
+# Know Issues
+
+- Reindex not safely when Worker restart in **IMPORT** status.
