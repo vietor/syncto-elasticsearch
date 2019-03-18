@@ -17,7 +17,7 @@ import mongodbsync.mongodb._
 import mongodbsync.elasticsearch._
 
 class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
-  private val VERSON_CODE = "2.0"
+  private val VERSION = "2.0"
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
@@ -57,7 +57,14 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
     })
   }
 
+  private def sendResponse[T](response: HttpServletResponse, responseData: T) {
+    response.setContentType("application/json; charset=utf-8")
+    response.setStatus(HttpServletResponse.SC_OK)
+    response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+  }
+
   val statusHandler = new AbstractHandler() {
+
     private def dumpWorkerStatus(worker: Worker, summary: Boolean = false):HashMap[String, Any] = {
       new HashMap[String, Any](){
         put("key", worker.key)
@@ -75,7 +82,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           try {
             val timestamp = SomeUtil.getTimestamp()
             new HashMap[String, Any]() {
-              put("version", VERSON_CODE)
+              put("version", VERSION)
               put("timestamp", timestamp)
               put("uptime", timestamp - tsForUptime)
               put("workers", new ArrayList[Any]() {
@@ -95,9 +102,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       } else if(target.matches("^\\/_worker\\/[^\\/]+\\/_status") && request.getMethod() == "GET") {
         baseRequest.setHandled(true)
 
@@ -119,9 +124,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       }
     }
   }
@@ -149,9 +152,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       } else if(target.matches("^\\/_worker\\/[^\\/]+\\/_meta$") && request.getMethod() == "PUT") {
         baseRequest.setHandled(true)
 
@@ -208,9 +209,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       }
     }
   }
@@ -244,9 +243,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       }
     }
   }
@@ -280,9 +277,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       }
     }
   }
@@ -319,9 +314,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
           }
         }
 
-        response.setContentType("application/json; charset=utf-8")
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
+        sendResponse(response, responseData)
       }
     }
   }
