@@ -3,9 +3,16 @@ import mongodbsync.engine._
 
 object MongodbSync {
 
-  case class ConfigFileStruct(
+  case class ConfigFile(
     port: Int,
     data: String
+  )
+
+  private val syncConfig = SyncConfig(
+    batchBytesMB = 10,
+    batchQueueSize = 1000,
+    intervalOplogMS = 500,
+    intervalRetryMS = 1000
   )
 
   def main(args: Array[String]) {
@@ -17,8 +24,8 @@ object MongodbSync {
     if(configText == null)
       throw new IllegalStateException("Not found config.json")
 
-    val config = JsonUtil.readValue(configText, classOf[ConfigFileStruct])
-    var webService = new WebSynchronManager(config.port, KtVtStore.openOrCreate({
+    val config = JsonUtil.readValue(configText, classOf[ConfigFile])
+    var webService = new WebSynchronManager(config.port, syncConfig, KtVtStore.openOrCreate({
       if(config.data == null || config.data.isEmpty())
         "data/"
       else

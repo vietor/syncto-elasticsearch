@@ -158,7 +158,13 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
             "key": "second",
             "status": "RUNNING"
         }
-    ]
+    ],
+    "config": {
+        "batch_size_mb": 10,
+        "batch_queue_size": 1000,
+        "interval_oplog_ms": 500,
+        "interval_retry_ms": 1000
+    }
 }
 ```
 

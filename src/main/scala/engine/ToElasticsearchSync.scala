@@ -39,7 +39,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
     record: MgOpRecord
   )
 
-  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncConfig.batchActions)
+  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncConfig.batchQueueSize)
 
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
     val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
@@ -125,7 +125,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
         bulkProcessor = esCluster.createBulkProcessor(
           esConfig.index,
           EsBulkParameters(
-            actions = syncConfig.batchActions,
+            actions = syncConfig.batchQueueSize,
             bytesOnMB = syncConfig.batchBytesMB,
             flushIntervalOnMillis = syncConfig.intervalOplogMS,
             itemsErrorWatcher = (count: Int, e: Throwable) => {

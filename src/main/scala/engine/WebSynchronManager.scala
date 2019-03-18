@@ -16,17 +16,10 @@ import mongodbsync.utils._
 import mongodbsync.mongodb._
 import mongodbsync.elasticsearch._
 
-class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
+class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase) {
   private val VERSION = "2.0"
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
-
-  private val syncConfig = SyncConfig(
-    batchActions = 1000,
-    batchBytesMB = 10,
-    intervalOplogMS = 500,
-    intervalRetryMS = 1000,
-  )
 
   private case class Worker(
     key: String,
@@ -91,6 +84,12 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
                     add(dumpWorkerStatus(worker))
                   }
                 }
+              })
+              put("config", new HashMap[String, Int]() {
+                put("batch_queue_size", syncConfig.batchQueueSize)
+                put("batch_size_mb", syncConfig.batchBytesMB)
+                put("interval_oplog_ms", syncConfig.intervalOplogMS)
+                put("interval_retry_ms", syncConfig.intervalRetryMS)
               })
             }
           } catch {
