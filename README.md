@@ -78,9 +78,9 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 ### Response
 
 |*Name*|*Type*|*Description*|
-|---|---|---|---|
-|key|string|Worker KEY|
-|status|string|Status code|
+|---|---|---|
+|key|string|Worker Key|
+|status|string|Status Code|
 |summary|JSONObject|Summary of Worker|
 
 ``` json
@@ -132,15 +132,15 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 ### Response
 
 |*Name*|*Type*|*Description*|
-|---|---|---|---|
-|uptime|int|uptime (seconds)|
-|timestamp|int|current timestamp|
+|---|---|---|
+|uptime|long|Uptime (seconds)|
+|timestamp|long|Current timestamp|
 |workers|Array(worker)|Array of Workers|
 
 #### worker
 |*Name*|*Type*|*Description*|
-|---|---|---|---|
-|key|string|Worker KEY|
+|---|---|---|
+|key|string|Worker Key|
 |status|string|Status Code|
 
 ``` json
