@@ -22,8 +22,8 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 
 |*Name*|*Type*|*Description*|*Required*|
 |---|---|---|---|
-|mongodb|JSONObject|MongoDB's config|Y|
-|elasticsearch|JSONObject|ElasticSearch config|Y|
+|mongodb|Object|MongoDB's config|Y|
+|elasticsearch|Object|ElasticSearch config|Y|
 
 ``` json
 {
@@ -45,7 +45,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
         ]
     },
     "elasticsearch": {
-        "index": "test_users",
+        "index": "test-users",
         "cluster": {
             "name": "cluster1",
             "servers": [
@@ -55,9 +55,9 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
                 }
             ]
         },
-        "creater": {
-            "mapping": null,
-            "settings": null
+        "creator": {
+            "mapping": "{\"properties\":{\"title\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",,
+            "settings": "{\"analysis\":{\"normalizer\":{\"to_lowercase\":{\"type\":\"custom\",\"filter\":[\"lowercase\"]}}}}"
         }
     }
 }
@@ -81,7 +81,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 |---|---|---|
 |key|string|Worker Key|
 |status|string|Status Code|
-|summary|JSONObject|Summary of Worker|
+|summary|Object|Summary of Worker|
 
 ``` json
 {
@@ -133,6 +133,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 
 |*Name*|*Type*|*Description*|
 |---|---|---|
+|version|string|Version|
 |uptime|long|Uptime (seconds)|
 |timestamp|long|Current timestamp|
 |workers|Array(worker)|Array of Workers|
@@ -145,9 +146,10 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 
 ``` json
 {
+    "version": "2.0",
     "uptime": 1933,
     "timestamp": 1472614196,
-    "Workers": [
+    "workers": [
         {
             "key": "first",
             "status": "RUNNING"
