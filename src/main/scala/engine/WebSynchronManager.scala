@@ -21,6 +21,13 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
+  private val syncConfig = SyncConfig(
+    batchActions = 1000,
+    batchBytesMB = 10,
+    intervalOplogMS = 500,
+    intervalRetryMS = 1000,
+  )
+
   private case class Worker(
     key: String,
     meta: String,
@@ -35,7 +42,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
       if(fields != null) {
         try {
           val body =  JsonUtil.readTree(fields.get("metadata"))
-          val sync = new ToElasticsearchSync(key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+          val sync = new ToElasticsearchSync(syncConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
           put(key, Worker(
             key,
             fields.get("metadata"),
@@ -174,7 +181,7 @@ class WebSynchronManager(port: Int, ktvtDB: KtVtDatabase) {
               if(!body.has("elasticsearch"))
                 throw new IllegalStateException("Metadata no field: elasticsearch")
 
-              val sync = new ToElasticsearchSync(key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+              val sync = new ToElasticsearchSync(syncConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
               locales.putAll(key, new HashMap[String, String]() {
                 put("metadata", metadata)
                 put("timestamp", SomeUtil.getTimestamp().toString)

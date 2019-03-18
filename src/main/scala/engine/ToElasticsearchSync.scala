@@ -11,11 +11,7 @@ import mongodbsync.utils._
 import mongodbsync.mongodb._
 import mongodbsync.elasticsearch._
 
-class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
-  private val MAX_BULK_BYTESMB = 10
-  private val MAX_BULK_ACTIONS = 1000
-  private val INTERVAL_OPLOG = 500
-  private val INTERVAL_NETWORK_RETRY = 10000
+class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
   private def setStatusStep(step: String) {
@@ -43,7 +39,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
     record: MgOpRecord
   )
 
-  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](MAX_BULK_ACTIONS)
+  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncConfig.batchActions)
 
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
     val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
@@ -53,7 +49,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
 
       try {
         while(true) {
-          var sleepMS = INTERVAL_OPLOG
+          var sleepMS = syncConfig.intervalOplogMS
           try {
             MgClusterNode.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
               opTimestamp = record.ts
@@ -68,7 +64,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
                 logger.error("[" + syncKey + "] Fetch oplog", e)
               }
               else
-                sleepMS = INTERVAL_NETWORK_RETRY
+                sleepMS = syncConfig.intervalRetryMS
             }
           }
           Thread.sleep(sleepMS)
@@ -114,7 +110,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
                 setStatus(Status.START_FAILED)
                 throw e
               }
-              Thread.sleep(INTERVAL_NETWORK_RETRY)
+              Thread.sleep(syncConfig.intervalRetryMS)
             }
           }
         }
@@ -129,9 +125,9 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
         bulkProcessor = esCluster.createBulkProcessor(
           esConfig.index,
           EsBulkParameters(
-            actions = MAX_BULK_ACTIONS,
-            bytesOnMB = MAX_BULK_BYTESMB,
-            flushIntervalOnMillis = INTERVAL_OPLOG,
+            actions = syncConfig.batchActions,
+            bytesOnMB = syncConfig.batchBytesMB,
+            flushIntervalOnMillis = syncConfig.intervalOplogMS,
             itemsErrorWatcher = (count: Int, e: Throwable) => {
               logger.error("[" + syncKey + "] Bulk items " + count, e)
             },
@@ -148,7 +144,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
           MgClusterNode.importCollection(MgClusterNode.createImportContext(mgCluster, mgConfig), ()=> {
-            INTERVAL_NETWORK_RETRY
+            syncConfig.intervalRetryMS
           }, (record: MgRecord) => {
             count += 1
             bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
@@ -194,7 +190,7 @@ class ToElasticsearchSync(syncKey: String, mgConfig: MgConfig, esConfig: EsConfi
         var lastActionTS = bulkProcessor.getActionTS()
         while(true) {
           try {
-            val oplogRecord = oplogRecordQueue.poll(INTERVAL_OPLOG, TimeUnit.MILLISECONDS)
+            val oplogRecord = oplogRecordQueue.poll(syncConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
             if(oplogRecord != null) {
               val record = oplogRecord.record
               val status = shardStatus.get(oplogRecord.shard)

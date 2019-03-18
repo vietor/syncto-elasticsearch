@@ -10,6 +10,13 @@ object Status {
   val STOPPED = 4
 }
 
+case class SyncConfig(
+  batchActions: Int,
+  batchBytesMB: Int,
+  intervalOplogMS: Int,
+  intervalRetryMS: Int
+)
+
 trait AbstractSync {
   private var currentStatus = Status.UNKNOW
 
