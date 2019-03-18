@@ -126,7 +126,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
           esConfig.index,
           EsBulkParameters(
             actions = syncConfig.batchQueueSize,
-            bytesOnMB = syncConfig.batchBytesMB,
+            bytesOnMB = syncConfig.batchSizeMB,
             flushIntervalOnMillis = syncConfig.intervalOplogMS,
             itemsErrorWatcher = (count: Int, e: Throwable) => {
               logger.error("[" + syncKey + "] Bulk items " + count, e)

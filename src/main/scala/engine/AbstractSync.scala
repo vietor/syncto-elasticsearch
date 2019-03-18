@@ -11,7 +11,7 @@ object Status {
 }
 
 case class SyncConfig(
-  batchBytesMB: Int,
+  batchSizeMB: Int,
   batchQueueSize: Int,
   intervalOplogMS: Int,
   intervalRetryMS: Int

@@ -87,7 +87,7 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
               })
               put("config", new HashMap[String, Int]() {
                 put("batch_queue_size", syncConfig.batchQueueSize)
-                put("batch_size_mb", syncConfig.batchBytesMB)
+                put("batch_size_mb", syncConfig.batchSizeMB)
                 put("interval_oplog_ms", syncConfig.intervalOplogMS)
                 put("interval_retry_ms", syncConfig.intervalRetryMS)
               })

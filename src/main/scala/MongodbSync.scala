@@ -5,10 +5,14 @@ object MongodbSync {
 
   case class ConfigFile(
     port: Int,
-    data: String
+    data: String,
+    batch_size_mb: Int = 0,
+    batch_queue_size: Int = 0,
+    interval_oplog_ms: Int = 0,
+    interval_retry_ms: Int = 0
   )
 
-  private val syncConfig = SyncConfig(
+  val defaultSyncConfig = SyncConfig(
     batchBytesMB = 10,
     batchQueueSize = 1000,
     intervalOplogMS = 500,
@@ -25,7 +29,12 @@ object MongodbSync {
       throw new IllegalStateException("Not found config.json")
 
     val config = JsonUtil.readValue(configText, classOf[ConfigFile])
-    var webService = new WebSynchronManager(config.port, syncConfig, KtVtStore.openOrCreate({
+    var webService = new WebSynchronManager(config.port, SyncConfig(
+      batchSizeMB = if (config.batch_size_mb > 0) config.batch_size_mb else defaultSyncConfig.batchSizeMB,
+      batchQueueSize = if (config.batch_queue_size > 0) config.batch_queue_size else defaultSyncConfig.batchQueueSize,
+      intervalOplogMS = if (config.interval_oplog_ms > 0) config.interval_oplog_ms else defaultSyncConfig.intervalOplogMS,
+      intervalRetryMS = if (config.interval_retry_ms > 0) config.interval_retry_ms else defaultSyncConfig.intervalRetryMS,
+    ), KtVtStore.openOrCreate({
       if(config.data == null || config.data.isEmpty())
         "data/"
       else
