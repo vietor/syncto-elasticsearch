@@ -97,25 +97,18 @@ class MgClusterNode(cluster: MgCluster) {
                 oplogName
               ))
             }
-
           }
         }
       })
     }
     else {
       MgServerNode(false, {
-        val address = new ArrayList[MgServer]() {
-          clusterClient.getServerAddressList().forEach(row =>
-            add(MgClientUtils.convertAddress(row))
-          )
-        }
-        val unshardClient = MgClientUtils.createClient(address, cluster.auth)
-        val oplogName = getOplogCollectionName(unshardClient);
+        val oplogName = getOplogCollectionName(clusterClient);
         new ArrayList[MgShardNode](){
           add(MgShardNode(
             "unshared",
-            address,
-            getMgTimestamp(unshardClient, oplogName),
+            cluster.servers,
+            getMgTimestamp(clusterClient, oplogName),
             oplogName
           ))
         }
@@ -123,7 +116,7 @@ class MgClusterNode(cluster: MgCluster) {
     }
   }
 
-  def getClient(): MongoClient = {
+  private def getClient(): MongoClient = {
     clusterClient
   }
 

@@ -13,7 +13,7 @@ object MongodbSync {
   )
 
   val defaultSyncConfig = SyncConfig(
-    batchBytesMB = 10,
+    batchSizeMB = 10,
     batchQueueSize = 1000,
     intervalOplogMS = 500,
     intervalRetryMS = 1000

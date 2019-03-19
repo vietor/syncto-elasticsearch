@@ -2,8 +2,9 @@ package mongodbsync.engine
 
 import java.util.{Map, HashMap}
 import java.util.ArrayList
-import scala.collection.JavaConverters._
+import java.util.TimeZone
 import org.slf4j.LoggerFactory
+import scala.collection.JavaConverters._
 
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.Handler
@@ -76,7 +77,6 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
             val timestamp = SomeUtil.getTimestamp()
             new HashMap[String, Any]() {
               put("version", VERSION)
-              put("timestamp", timestamp)
               put("uptime", timestamp - tsForUptime)
               put("workers", new ArrayList[Any]() {
                 lock.synchronized {
@@ -86,11 +86,13 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
                 }
               })
               put("config", new HashMap[String, Int]() {
-                put("batch_queue_size", syncConfig.batchQueueSize)
                 put("batch_size_mb", syncConfig.batchSizeMB)
+                put("batch_queue_size", syncConfig.batchQueueSize)
                 put("interval_oplog_ms", syncConfig.intervalOplogMS)
                 put("interval_retry_ms", syncConfig.intervalRetryMS)
               })
+              put("timestamp", timestamp)
+              put("timezone", TimeZone.getDefault().getDisplayName())
             }
           } catch {
             case e: Throwable => {
