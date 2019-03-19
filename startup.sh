@@ -41,20 +41,11 @@ if [ "x$JAVA_HOME" != "x" ]; then
 fi
 
 WORK_HOME=$(cd `dirname $0` && pwd -P)
-FILE_NAME="mongodb-sync-assembly-latest.jar"
-EXECUTE_FILE_PATH=$WORK_HOME/lib/$FILE_NAME
-DEVELOPER_FILE_PATH=$(find $WORK_HOME/build -name $FILE_NAME 2>/dev/null | head -n 1) || ""
-if [ ! -z "$DEVELOPER_FILE_PATH" ]  && [ -f $DEVELOPER_FILE_PATH ]; then
-    EXECUTE_FILE_PATH=$DEVELOPER_FILE_PATH
-fi
-if [ ! -f $EXECUTE_FILE_PATH ]; then
-    echo "Not found execute jar file: $EXECUTE_FILE_PATH"
-    exit 1
-fi
+WORK_CLASSPATH="$WORK_HOME/lib/*"
 
 cd $WORK_HOME
 if ! echo $* | grep -E '(^-d |-d$| -d |--daemonize$|--daemonize )' > /dev/null; then
-    exec $JAVA_COMMAND $JAVA_OPTS -jar $EXECUTE_FILE_PATH
+    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" MongodbSync
 else
-    exec $JAVA_COMMAND $JAVA_OPTS -jar $EXECUTE_FILE_PATH 1>/dev/null 2>&1 &
+    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" MongodbSync 1>/dev/null 2>&1 &
 fi

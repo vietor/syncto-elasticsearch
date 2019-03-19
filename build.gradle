@@ -4,6 +4,7 @@ apply plugin: 'application'
 
 version='latest'
 sourceCompatibility = 1.8
+mainClassName = "MongodbSync"
 
 repositories {
     jcenter()
@@ -19,23 +20,17 @@ dependencies {
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
 }
 
-mainClassName = "MongodbSync"
-
-task assembly(type: Jar) {
-    baseName = project.name + '-assembly'
-    from {
-        configurations.compile.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
-    }
-    with jar
-
-    manifest {
-        attributes 'Main-Class': mainClassName
-    }
-}
-
-task copyToLib(type: Copy) {
+task copyJars(type: Copy) {
     into "lib"
+    from("build/libs") {
+        include "*.jar"
+    }
     from configurations.runtime
 }
+
+task deleteJars(type: Delete) {
+    delete "lib"
+}
+
+build.finalizedBy(copyJars)
+clean.finalizedBy(deleteJars)

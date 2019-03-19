@@ -1,12 +1,9 @@
 /.aproject
-/release
-/project
+/.gradle
 /build
-/target
-/test*
+/lib
 /logs
 /data
 /G*
-/build
-/.gradle
+/test*
 
