@@ -7,9 +7,9 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 
 ## Summary
 
-> Data transfer via HTTP request.
-> Character encoding is unified with UTF-8.
-> Request parameters, using the application/json format.
+> Data transfer via HTTP request.  
+> Character encoding is unified with UTF-8.  
+> Request parameters, using the application/json format.  
 > Request results, using the application/json format, and each API is consistent.
 
 ## Create Worker
