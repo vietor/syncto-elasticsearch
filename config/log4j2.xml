@@ -10,9 +10,9 @@
                 <pattern>%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n</pattern>
             </PatternLayout>
             <Policies>
-                <SizeBasedTriggeringPolicy size="10 MB" />
+                <SizeBasedTriggeringPolicy size="5 MB" />
             </Policies>
-            <DefaultRolloverStrategy max="5"/>
+            <DefaultRolloverStrategy max="10"/>
         </RollingFile>
 
         <Console name="console" target="SYSTEM_OUT">
