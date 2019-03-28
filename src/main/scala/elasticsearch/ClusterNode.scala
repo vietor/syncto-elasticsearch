@@ -109,7 +109,7 @@ class EsClusterNode(cluster: EsCluster) {
         case EsConstants.OP_INDEX =>
           request.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, row.id).source(row.doc, XContentType.JSON))
         case EsConstants.OP_UPDATE =>
-          request.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, row.id).doc(row.doc, XContentType.JSON))
+          request.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, row.id).doc(row.doc, XContentType.JSON).retryOnConflict(3))
         case EsConstants.OP_DELETE =>
           request.add(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, row.id))
       }
