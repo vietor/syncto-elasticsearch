@@ -10,6 +10,8 @@ import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.handler.AbstractHandler
+import org.eclipse.jetty.server.handler.ResourceHandler
+import org.eclipse.jetty.server.handler.ContextHandler
 import org.eclipse.jetty.server.handler.HandlerCollection
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
@@ -328,6 +330,14 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
       add(startHandler)
       add(stopHandler)
       add(deleteHandler)
+      add({
+        val ctx = new ContextHandler("/logs");
+        val res = new ResourceHandler()
+        res.setDirectoriesListed(true)
+        res.setResourceBase("logs/")
+        ctx.setHandler(res)
+        ctx
+      })
     }
     val collection = new HandlerCollection()
     collection.setHandlers(handlers.toArray.map(_.asInstanceOf[Handler]))
