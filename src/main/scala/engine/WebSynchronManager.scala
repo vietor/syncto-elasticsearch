@@ -6,6 +6,7 @@ import java.util.TimeZone
 import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 
+import org.eclipse.jetty.http.MimeTypes
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Request
@@ -331,10 +332,13 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
       add(stopHandler)
       add(deleteHandler)
       add({
-        val ctx = new ContextHandler("/logs");
         val res = new ResourceHandler()
+        res.setMimeTypes(new MimeTypes() {
+          addMimeMapping("log", "text/plain; charset=UTF-8")
+        })
         res.setDirectoriesListed(true)
         res.setResourceBase("logs/")
+        val ctx = new ContextHandler("/logs");
         ctx.setHandler(res)
         ctx
       })
