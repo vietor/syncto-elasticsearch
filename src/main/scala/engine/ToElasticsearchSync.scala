@@ -128,8 +128,8 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
             actions = syncConfig.batchQueueSize,
             bytesOnMB = syncConfig.batchSizeMB,
             flushIntervalOnMillis = syncConfig.intervalOplogMS,
-            itemsErrorWatcher = (count: Int, e: Throwable) => {
-              logger.error("[" + syncKey + "] Bulk items " + count, e)
+            itemsErrorWatcher = (e: Throwable) => {
+              logger.error("[" + syncKey + "] Bulk items ", e)
             },
             globalErrorWatcher = (e: Throwable) => {
               logger.error("[" + syncKey + "] Bulk processor", e)

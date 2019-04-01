@@ -21,7 +21,7 @@ case class EsBulkParameters(
   bytesOnMB: Int = 5,
   flushIntervalOnMillis: Int = 10,
   countWatcher: (Long) => Unit = null,
-  itemsErrorWatcher: (Int, Throwable) => Unit = null,
+  itemsErrorWatcher: (Throwable) => Unit = null,
   globalErrorWatcher: (Throwable) => Unit = null
 )
 
@@ -136,16 +136,11 @@ class EsClusterNode(cluster: EsCluster) {
         timestamp = SomeUtil.getTimestamp()
         if(parameters.itemsErrorWatcher != null) {
           if(response.hasFailures()) {
-            var count: Int = 0;
-            var firstFailure: Throwable = null
             for(item <- response.getItems()) {
               if(item.isFailed()) {
-                count += 1
-                if(firstFailure == null)
-                  firstFailure = item.getFailure().getCause()
+                parameters.itemsErrorWatcher(item.getFailure().getCause())
               }
             }
-            parameters.itemsErrorWatcher(count, firstFailure)
           }
         }
       }
