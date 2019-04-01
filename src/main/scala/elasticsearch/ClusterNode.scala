@@ -20,7 +20,6 @@ case class EsBulkParameters(
   actions: Int = 1000,
   bytesOnMB: Int = 5,
   flushIntervalOnMillis: Int = 10,
-  countWatcher: (Long) => Unit = null,
   itemsErrorWatcher: (Throwable) => Unit = null,
   globalErrorWatcher: (Throwable) => Unit = null
 )
@@ -109,7 +108,7 @@ class EsClusterNode(cluster: EsCluster) {
         case EsConstants.OP_INDEX =>
           request.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, row.id).source(row.doc, XContentType.JSON))
         case EsConstants.OP_UPDATE =>
-          request.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, row.id).doc(row.doc, XContentType.JSON).retryOnConflict(3))
+          request.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, row.id).doc(row.doc, XContentType.JSON).retryOnConflict(3).docAsUpsert(true))
         case EsConstants.OP_DELETE =>
           request.add(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, row.id))
       }
@@ -127,10 +126,7 @@ class EsClusterNode(cluster: EsCluster) {
       override def getTimestamp(): Long = {
         timestamp
       }
-
       override def beforeBulk(executionId: Long, request: BulkRequest) {
-        if(parameters.countWatcher != null)
-          parameters.countWatcher(request.numberOfActions)
       }
       override def afterBulk(executionId: Long, request: BulkRequest, response: BulkResponse) {
         timestamp = SomeUtil.getTimestamp()

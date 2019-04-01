@@ -21,9 +21,15 @@ import mongodbsync.mongodb._
 import mongodbsync.elasticsearch._
 
 class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase) {
-  private val VERSION = "2.0"
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
+  private val buildVersion = {
+    val version = getClass.getPackage().getImplementationVersion()
+    if(version == null)
+      "dev"
+    else
+      version
+  }
 
   private case class Worker(
     key: String,
@@ -79,7 +85,7 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
           try {
             val timestamp = SomeUtil.getTimestamp()
             new HashMap[String, Any]() {
-              put("version", VERSION)
+              put("version", buildVersion)
               put("uptime", timestamp - tsForUptime)
               put("workers", new ArrayList[Any]() {
                 lock.synchronized {
