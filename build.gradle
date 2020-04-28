@@ -2,10 +2,6 @@ apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'application'
 
-version='latest'
-sourceCompatibility = 1.8
-mainClassName = "MongodbSync"
-
 repositories {
     jcenter()
 }
@@ -20,9 +16,16 @@ dependencies {
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
 }
 
+sourceCompatibility = 1.8
+mainClassName = "MongodbSync"
+
 jar {
     manifest {
-        attributes 'Implementation-Version': '2.1.0'
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Main-Class': mainClassName
+        )
     }
 }
 
