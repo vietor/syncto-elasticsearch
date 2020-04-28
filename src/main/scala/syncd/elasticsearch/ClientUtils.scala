@@ -1,4 +1,4 @@
-package mongodbsync.elasticsearch
+package syncd.elasticsearch
 
 import java.util.HashMap
 import java.util.ArrayList

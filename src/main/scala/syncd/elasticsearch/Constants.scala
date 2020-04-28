@@ -1,4 +1,4 @@
-package mongodbsync.elasticsearch
+package syncd.elasticsearch
 
 object EsConstants {
   val OP_INDEX = 0

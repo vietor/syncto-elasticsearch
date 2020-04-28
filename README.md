@@ -56,7 +56,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
             ]
         },
         "creator": {
-            "mapping": "{\"properties\":{\"title\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",,
+            "mapping": "{\"properties\":{\"title\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",
             "settings": "{\"analysis\":{\"normalizer\":{\"to_lowercase\":{\"type\":\"custom\",\"filter\":[\"lowercase\"]}}}}"
         }
     }

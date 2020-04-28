@@ -1,4 +1,4 @@
-package mongodbsync.engine
+package syncd.engine
 
 import java.util.{Map, HashMap}
 import java.util.ArrayList
@@ -7,11 +7,11 @@ import scala.collection.JavaConverters._
 import org.slf4j.LoggerFactory
 import org.elasticsearch.ElasticsearchStatusException
 
-import mongodbsync.utils._
-import mongodbsync.mongodb._
-import mongodbsync.elasticsearch._
+import syncd.utils._
+import syncd.mongodb._
+import syncd.elasticsearch._
 
-class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
+class ToElasticsearchSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
   private def setStatusStep(step: String) {
@@ -39,7 +39,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
     record: MgOpRecord
   )
 
-  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncConfig.batchQueueSize)
+  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncdConfig.batchQueueSize)
 
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
     val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
@@ -49,7 +49,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
 
       try {
         while(true) {
-          var sleepMS = syncConfig.intervalOplogMS
+          var sleepMS = syncdConfig.intervalOplogMS
           try {
             MgClusterNode.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
               opTimestamp = record.ts
@@ -64,7 +64,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
                 logger.error("[" + syncKey + "] Fetch oplog", e)
               }
               else
-                sleepMS = syncConfig.intervalRetryMS
+                sleepMS = syncdConfig.intervalRetryMS
             }
           }
           Thread.sleep(sleepMS)
@@ -110,7 +110,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
                 setStatus(Status.START_FAILED)
                 throw e
               }
-              Thread.sleep(syncConfig.intervalRetryMS)
+              Thread.sleep(syncdConfig.intervalRetryMS)
             }
           }
         }
@@ -125,9 +125,9 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
         bulkProcessor = esCluster.createBulkProcessor(
           esConfig.index,
           EsBulkParameters(
-            actions = syncConfig.batchQueueSize,
-            bytesOnMB = syncConfig.batchSizeMB,
-            flushIntervalOnMillis = syncConfig.intervalOplogMS,
+            actions = syncdConfig.batchQueueSize,
+            bytesOnMB = syncdConfig.batchSizeMB,
+            flushIntervalOnMillis = syncdConfig.intervalOplogMS,
             itemsErrorWatcher = (e: Throwable) => {
               logger.error("[" + syncKey + "] Bulk items ", e)
             },
@@ -144,7 +144,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
           MgClusterNode.importCollection(MgClusterNode.createImportContext(mgCluster, mgConfig), ()=> {
-            syncConfig.intervalRetryMS
+            syncdConfig.intervalRetryMS
           }, (record: MgRecord) => {
             count += 1
             bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
@@ -190,7 +190,7 @@ class ToElasticsearchSync(syncConfig: SyncConfig, syncKey: String,  mgConfig: Mg
         var lastActionTS = bulkProcessor.getActionTS()
         while(true) {
           try {
-            val oplogRecord = oplogRecordQueue.poll(syncConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
+            val oplogRecord = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
             if(oplogRecord != null) {
               val record = oplogRecord.record
               val status = shardStatus.get(oplogRecord.shard)

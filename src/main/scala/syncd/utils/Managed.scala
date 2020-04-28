@@ -1,4 +1,4 @@
-package mongodbsync.utils
+package syncd.utils
 
 object Managed {
   def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B =

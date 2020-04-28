@@ -1,4 +1,4 @@
-package mongodbsync.mongodb
+package syncd.mongodb
 
 object MgConstants {
   val ADMIN_DATABASE = "admin"

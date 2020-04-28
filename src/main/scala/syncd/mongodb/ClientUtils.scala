@@ -1,4 +1,4 @@
-package mongodbsync.mongodb
+package syncd.mongodb
 
 import java.util.HashMap
 import java.util.ArrayList

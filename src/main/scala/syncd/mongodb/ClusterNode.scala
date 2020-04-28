@@ -1,4 +1,4 @@
-package mongodbsync.mongodb
+package syncd.mongodb
 
 import java.lang.Integer
 import java.util.ArrayList
@@ -8,7 +8,7 @@ import org.bson._
 import org.bson.types._
 import com.mongodb._
 import com.mongodb.client.MongoCollection
-import mongodbsync.utils.Managed._
+import syncd.utils.Managed._
 
 class MgClusterNode(cluster: MgCluster) {
 

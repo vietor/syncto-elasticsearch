@@ -1,4 +1,4 @@
-package mongodbsync.elasticsearch
+package syncd.elasticsearch
 
 import java.util.List
 import java.util.HashMap
@@ -14,7 +14,7 @@ import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest
 
-import mongodbsync.utils._
+import syncd.utils._
 
 case class EsBulkParameters(
   actions: Int = 1000,

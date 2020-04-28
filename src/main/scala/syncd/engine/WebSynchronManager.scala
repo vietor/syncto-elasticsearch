@@ -1,4 +1,4 @@
-package mongodbsync.engine
+package syncd.engine
 
 import java.util.{Map, HashMap}
 import java.util.ArrayList
@@ -16,11 +16,11 @@ import org.eclipse.jetty.server.handler.ContextHandler
 import org.eclipse.jetty.server.handler.HandlerCollection
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
-import mongodbsync.utils._
-import mongodbsync.mongodb._
-import mongodbsync.elasticsearch._
+import syncd.utils._
+import syncd.mongodb._
+import syncd.elasticsearch._
 
-class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase) {
+class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
   private val buildVersion = {
@@ -45,7 +45,7 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
       if(fields != null) {
         try {
           val body =  JsonUtil.readTree(fields.get("metadata"))
-          val sync = new ToElasticsearchSync(syncConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+          val sync = new ToElasticsearchSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
           put(key, Worker(
             key,
             fields.get("metadata"),
@@ -95,10 +95,10 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
                 }
               })
               put("config", new HashMap[String, Int]() {
-                put("batch_size_mb", syncConfig.batchSizeMB)
-                put("batch_queue_size", syncConfig.batchQueueSize)
-                put("interval_oplog_ms", syncConfig.intervalOplogMS)
-                put("interval_retry_ms", syncConfig.intervalRetryMS)
+                put("batch_size_mb", syncdConfig.batchSizeMB)
+                put("batch_queue_size", syncdConfig.batchQueueSize)
+                put("interval_oplog_ms", syncdConfig.intervalOplogMS)
+                put("interval_retry_ms", syncdConfig.intervalRetryMS)
               })
               put("timestamp", timestamp)
               put("timezone", TimeZone.getDefault().getDisplayName())
@@ -192,7 +192,7 @@ class WebSynchronManager(port: Int, syncConfig: SyncConfig, ktvtDB: KtVtDatabase
               if(!body.has("elasticsearch"))
                 throw new IllegalStateException("Metadata no field: elasticsearch")
 
-              val sync = new ToElasticsearchSync(syncConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+              val sync = new ToElasticsearchSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
               locales.putAll(key, new HashMap[String, String]() {
                 put("metadata", metadata)
                 put("timestamp", SomeUtil.getTimestamp().toString)

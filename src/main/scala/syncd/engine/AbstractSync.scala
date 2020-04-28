@@ -1,4 +1,4 @@
-package mongodbsync.engine
+package syncd.engine
 
 import java.util.Map
 
@@ -10,7 +10,7 @@ object Status {
   val STOPPED = 4
 }
 
-case class SyncConfig(
+case class SyncdConfig(
   batchSizeMB: Int,
   batchQueueSize: Int,
   intervalOplogMS: Int,

@@ -1,4 +1,4 @@
-package mongodbsync.utils
+package syncd.utils
 
 import java.io._
 import java.util.ArrayList

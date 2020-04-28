@@ -1,5 +1,5 @@
-import mongodbsync.utils._
-import mongodbsync.engine._
+import syncd.utils._
+import syncd.engine._
 
 object MongodbSync {
 
@@ -12,7 +12,7 @@ object MongodbSync {
     interval_retry_ms: Int = 0
   )
 
-  val defaultSyncConfig = SyncConfig(
+  val defaultSyncdConfig = SyncdConfig(
     batchSizeMB = 10,
     batchQueueSize = 1000,
     intervalOplogMS = 500,
@@ -29,11 +29,11 @@ object MongodbSync {
       throw new IllegalStateException("Not found config.json")
 
     val config = JsonUtil.readValue(configText, classOf[ConfigFile])
-    var webService = new WebSynchronManager(config.port, SyncConfig(
-      batchSizeMB = if (config.batch_size_mb > 0) config.batch_size_mb else defaultSyncConfig.batchSizeMB,
-      batchQueueSize = if (config.batch_queue_size > 0) config.batch_queue_size else defaultSyncConfig.batchQueueSize,
-      intervalOplogMS = if (config.interval_oplog_ms > 0) config.interval_oplog_ms else defaultSyncConfig.intervalOplogMS,
-      intervalRetryMS = if (config.interval_retry_ms > 0) config.interval_retry_ms else defaultSyncConfig.intervalRetryMS,
+    var webService = new WebSynchronManager(config.port, SyncdConfig(
+      batchSizeMB = if (config.batch_size_mb > 0) config.batch_size_mb else defaultSyncdConfig.batchSizeMB,
+      batchQueueSize = if (config.batch_queue_size > 0) config.batch_queue_size else defaultSyncdConfig.batchQueueSize,
+      intervalOplogMS = if (config.interval_oplog_ms > 0) config.interval_oplog_ms else defaultSyncdConfig.intervalOplogMS,
+      intervalRetryMS = if (config.interval_retry_ms > 0) config.interval_retry_ms else defaultSyncdConfig.intervalRetryMS,
     ), KtVtStore.openOrCreate({
       if(config.data == null || config.data.isEmpty())
         "data/"

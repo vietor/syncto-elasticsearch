@@ -1,4 +1,4 @@
-package mongodbsync.utils
+package syncd.utils
 
 import java.io.File
 import com.fasterxml.jackson.databind.{JsonNode, SerializationFeature, DeserializationFeature, ObjectMapper}
