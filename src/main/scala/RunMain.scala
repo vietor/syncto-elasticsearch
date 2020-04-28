@@ -1,7 +1,7 @@
 import syncd.utils._
 import syncd.engine._
 
-object MongodbSync {
+object RunMain {
 
   case class ConfigFile(
     port: Int,

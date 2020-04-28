@@ -45,7 +45,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
       if(fields != null) {
         try {
           val body =  JsonUtil.readTree(fields.get("metadata"))
-          val sync = new ToElasticsearchSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+          val sync = new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
           put(key, Worker(
             key,
             fields.get("metadata"),
@@ -192,7 +192,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
               if(!body.has("elasticsearch"))
                 throw new IllegalStateException("Metadata no field: elasticsearch")
 
-              val sync = new ToElasticsearchSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+              val sync = new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
               locales.putAll(key, new HashMap[String, String]() {
                 put("metadata", metadata)
                 put("timestamp", SomeUtil.getTimestamp().toString)

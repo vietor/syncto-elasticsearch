@@ -11,7 +11,7 @@ import syncd.utils._
 import syncd.mongodb._
 import syncd.elasticsearch._
 
-class ToElasticsearchSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
+class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
   private def setStatusStep(step: String) {

@@ -17,14 +17,14 @@ dependencies {
 }
 
 sourceCompatibility = 1.8
-mainClassName = "MongodbSync"
+mainClassName = "RunMain"
 
 jar {
     manifest {
         attributes(
+            'Main-Class': mainClassName,
             'Implementation-Title': project.name,
-            'Implementation-Version': project.version,
-            'Main-Class': mainClassName
+            'Implementation-Version': project.version
         )
     }
 }
