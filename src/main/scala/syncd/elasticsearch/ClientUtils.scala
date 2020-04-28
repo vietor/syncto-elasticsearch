@@ -1,8 +1,7 @@
 package syncd.elasticsearch
 
-import java.util.HashMap
-import java.util.ArrayList
-import scala.collection.JavaConverters._
+import java.util.{ArrayList, HashMap}
+import scala.jdk.CollectionConverters._
 
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
@@ -33,7 +32,7 @@ object EsClientUtils {
       caches.get(key)
     else {
       var hosts = servers.asScala.map((row) => new HttpHost(row.host, row.port, "http"))
-      val client = new RestHighLevelClient(RestClient.builder(hosts: _*))
+      val client = new RestHighLevelClient(RestClient.builder(hosts.toSeq: _*))
       caches.put(key, client)
       client
     }

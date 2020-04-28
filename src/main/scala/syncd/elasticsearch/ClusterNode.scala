@@ -30,23 +30,23 @@ trait EsBulkProcessorTimer {
 
 class EsBulkProcessor(index: String, timer: EsBulkProcessorTimer, processor: BulkProcessor) {
 
-  def index(id: String, doc: String) {
+  def index(id: String, doc: String): Unit = {
     processor.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, id).source(doc, XContentType.JSON))
   }
 
-  def update(id: String, doc: String) {
+  def update(id: String, doc: String): Unit = {
     processor.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE,  id).doc(doc, XContentType.JSON))
   }
 
-  def delete(id: String) {
+  def delete(id: String): Unit = {
     processor.add(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, id))
   }
 
-  def flush() {
+  def flush(): Unit = {
     processor.flush()
   }
 
-  def close() {
+  def close(): Unit = {
     try {
       processor.close()
     } catch {
@@ -73,7 +73,7 @@ class EsClusterNode(cluster: EsCluster) {
     clusterClient.indices().exists(request, RequestOptions.DEFAULT);
   }
 
-  def create(index: String, settings: String = null, mapping: String = null) {
+  def create(index: String, settings: String = null, mapping: String = null): Unit = {
     val request = new CreateIndexRequest(index)
     if(settings != null && !settings.isEmpty())
       request.settings(settings, XContentType.JSON)
@@ -82,22 +82,22 @@ class EsClusterNode(cluster: EsCluster) {
     clusterClient.indices().create(request, RequestOptions.DEFAULT)
   }
 
-  def modifyMapping(index: String, mapping: String) {
+  def modifyMapping(index: String, mapping: String): Unit = {
     val request = new PutMappingRequest(index)
     request.`type`(EsConstants.DEFAULT_TYPE)
     request.source(mapping, XContentType.JSON)
     clusterClient.indices().putMapping(request, RequestOptions.DEFAULT)
   }
 
-  def directIndex(index: String, id: String, doc: String) {
+  def directIndex(index: String, id: String, doc: String): Unit = {
     clusterClient.index(new IndexRequest(index, EsConstants.DEFAULT_TYPE, id).source(doc, XContentType.JSON), RequestOptions.DEFAULT)
   }
 
-  def directUpdate(index: String, id: String, doc: String) {
+  def directUpdate(index: String, id: String, doc: String): Unit = {
     clusterClient.update(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, id).doc(doc, XContentType.JSON), RequestOptions.DEFAULT)
   }
 
-  def directDelete(index: String, id: String) {
+  def directDelete(index: String, id: String): Unit = {
     clusterClient.delete(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, id), RequestOptions.DEFAULT)
   }
 
@@ -126,9 +126,9 @@ class EsClusterNode(cluster: EsCluster) {
       override def getTimestamp(): Long = {
         timestamp
       }
-      override def beforeBulk(executionId: Long, request: BulkRequest) {
+      override def beforeBulk(executionId: Long, request: BulkRequest): Unit = {
       }
-      override def afterBulk(executionId: Long, request: BulkRequest, response: BulkResponse) {
+      override def afterBulk(executionId: Long, request: BulkRequest, response: BulkResponse): Unit = {
         timestamp = SomeUtil.getTimestamp()
         if(parameters.itemsErrorWatcher != null) {
           if(response.hasFailures()) {
@@ -140,7 +140,7 @@ class EsClusterNode(cluster: EsCluster) {
           }
         }
       }
-      override def afterBulk(executionId: Long, request: BulkRequest, failure: Throwable) {
+      override def afterBulk(executionId: Long, request: BulkRequest, failure: Throwable): Unit = {
         if(parameters.globalErrorWatcher != null)
           parameters.globalErrorWatcher(failure)
       }

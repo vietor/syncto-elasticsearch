@@ -34,12 +34,12 @@ trait AbstractSync {
     }
   }
 
-  def setStatus(status: Int) {
+  def setStatus(status: Int): Unit = {
     currentStatus = status
   }
 
-  def start()
-  def stop()
+  def start(): Unit
+  def stop(): Unit
 
   def dumpSummary(): Map[String, Map[String, String]]
 }

@@ -1,9 +1,9 @@
 package syncd.engine
 
-import java.util.{Map, HashMap}
-import java.util.ArrayList
 import java.util.concurrent._
-import scala.collection.JavaConverters._
+import java.util.{Map, HashMap, ArrayList}
+import scala.jdk.CollectionConverters._
+
 import org.slf4j.LoggerFactory
 import org.elasticsearch.ElasticsearchStatusException
 
@@ -14,7 +14,7 @@ import syncd.elasticsearch._
 class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig, esConfig: EsConfig, ktvtStore: KtVtCollection) extends AbstractSync {
   private val logger = LoggerFactory.getLogger(getClass().getName())
 
-  private def setStatusStep(step: String) {
+  private def setStatusStep(step: String): Unit = {
     ktvtStore.put("status", "step", step)
   }
 
@@ -26,11 +26,11 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     }
   }
 
-  private def storeOplogTimestamp(shard: MgShardNode, opTimestamp: MgTimestamp) {
+  private def storeOplogTimestamp(shard: MgShardNode, opTimestamp: MgTimestamp): Unit = {
     ktvtStore.put("oplog", shard.name, JsonUtil.writeValueAsString(opTimestamp))
   }
 
-  private def storeOplogTimestamp(shard: String, opTimestamp: MgTimestamp) {
+  private def storeOplogTimestamp(shard: String, opTimestamp: MgTimestamp): Unit = {
     ktvtStore.put("oplog", shard, JsonUtil.writeValueAsString(opTimestamp))
   }
 
@@ -44,7 +44,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
     val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
 
-    override def run() {
+    override def run(): Unit = {
       var opTimestamp = readOplogTimestamp(shard)
 
       try {
@@ -85,7 +85,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
       var timestamp: MgTimestamp = null
     }
 
-    override def run() {
+    override def run(): Unit =  {
       var mgCluster: MgClusterNode = null
       var esCluster: EsClusterNode = null
       var bulkProcessor: EsBulkProcessor = null
@@ -240,7 +240,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
   private var mainThread: Thread = null
   private val oplogThreads = new ArrayList[Thread]()
 
-  override def start() {
+  override def start(): Unit = {
     if(mainThread != null)
       throw new IllegalStateException("Sync already started")
     mainThread = new Thread(new MainThread())
@@ -248,7 +248,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     mainThread.start()
   }
 
-  override def stop() {
+  override def stop(): Unit = {
     try {
       if(mainThread != null) {
         mainThread.interrupt()

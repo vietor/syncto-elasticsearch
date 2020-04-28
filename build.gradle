@@ -2,22 +2,32 @@ apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'application'
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 repositories {
-    jcenter()
+    maven { url 'https://maven.aliyun.com/repository/jcenter/'}
 }
 
 dependencies {
-    compile 'org.scala-lang:scala-library:2.12.6'
+    compile 'org.scala-lang:scala-library:2.13.2'
+    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.13:2.9.10'
+
     compile 'org.apache.logging.log4j:log4j-jcl:2.11.2'
     compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.2'
-    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.12:2.9.6'
     compile 'org.eclipse.jetty:jetty-server:9.4.11.v20180605'
+
     compile 'org.mongodb:mongo-java-driver:3.10.1'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
 }
 
-sourceCompatibility = 1.8
 mainClassName = "RunMain"
+
+// tasks.withType(ScalaCompile) {
+//     scalaCompileOptions.additionalParameters = ["-nowarn"]
+// }
 
 jar {
     manifest {

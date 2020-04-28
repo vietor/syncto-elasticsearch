@@ -2,29 +2,30 @@ package syncd.utils
 
 import java.util.{Map, HashMap}
 import java.util.{List, ArrayList}
+import scala.jdk.CollectionConverters._
+
+import org.slf4j.LoggerFactory
 import java.io.{File, RandomAccessFile}
 
 import com.fasterxml.jackson.databind.{SerializationFeature, DeserializationFeature, ObjectMapper}
 
-import org.slf4j.LoggerFactory
-import scala.collection.JavaConverters._
 
 trait KtVtCollection {
-  def put(key: String, field: String, value: String)
-  def putAll(key: String, more: Map[String, String])
+  def put(key: String, field: String, value: String): Unit
+  def putAll(key: String, more: Map[String, String]): Unit
   def get(key: String, field: String, defaultValue: String = null): String
   def getAll(key: String, defaultValue: Map[String, String] = null): Map[String, String]
   def getKeys(): List[String]
-  def remove(key: String, field: String)
-  def removeAll(key: String)
+  def remove(key: String, field: String): Unit
+  def removeAll(key: String): Unit
 }
 
 trait KtVtDatabase {
   def getLocalCollection(): KtVtCollection
   def getCollectionNames(): List[String]
   def getCollection(name: String): KtVtCollection
-  def dropCollection(name: String)
-  def sync()
+  def dropCollection(name: String): Unit
+  def sync(): Unit
 }
 
 object KtvtJsonMapper {
@@ -36,7 +37,7 @@ object KtvtJsonMapper {
     jsonMapper.readValue(src, classOf[HashMap[String, HashMap[String, String]]])
   }
 
-  def writeValue(dst: File, value: HashMap[String, HashMap[String, String]]) {
+  def writeValue(dst: File, value: HashMap[String, HashMap[String, String]]): Unit = {
     jsonMapper.writeValue(dst, value)
   }
 }
@@ -62,7 +63,7 @@ class KtVtFileCollection(file: File) extends KtVtCollection {
       }
   }
 
-  def put(key: String, field: String, value: String) {
+  def put(key: String, field: String, value: String): Unit = {
     lock.synchronized {
       updated = true
       val fields = kves.get(key)
@@ -75,7 +76,7 @@ class KtVtFileCollection(file: File) extends KtVtCollection {
     }
   }
 
-  def putAll(key: String, more: Map[String, String]) {
+  def putAll(key: String, more: Map[String, String]): Unit = {
     lock.synchronized {
       updated = true
       val fields = kves.get(key)
@@ -132,7 +133,7 @@ class KtVtFileCollection(file: File) extends KtVtCollection {
     }
   }
 
-  def remove(key: String, field: String) {
+  def remove(key: String, field: String): Unit = {
     lock.synchronized {
       val fields = kves.get(key)
       if(fields != null) {
@@ -142,14 +143,14 @@ class KtVtFileCollection(file: File) extends KtVtCollection {
     }
   }
 
-  def removeAll(key: String) {
+  def removeAll(key: String): Unit = {
     lock.synchronized {
       updated = true
       kves.remove(key)
     }
   }
 
-  def syncToFile() {
+  def syncToFile(): Unit = {
     lock.synchronized {
       if(updated) {
         try {
@@ -221,7 +222,7 @@ class KtVtFileDatabase(path: String) extends KtVtDatabase {
     systemCollection.getFields(COLLECTION_KEY_NAME)
   }
 
-  def dropCollection(name: String) {
+  def dropCollection(name: String): Unit = {
     collLock.synchronized {
       collections.remove(name)
       systemCollection.remove(COLLECTION_KEY_NAME, name)
@@ -229,7 +230,7 @@ class KtVtFileDatabase(path: String) extends KtVtDatabase {
     }
   }
 
-  private def syncToFile() {
+  private def syncToFile(): Unit = {
     localCollection.syncToFile()
     systemCollection.syncToFile()
     collLock.synchronized {
@@ -238,14 +239,14 @@ class KtVtFileDatabase(path: String) extends KtVtDatabase {
     }
   }
 
-  def sync() {
+  def sync(): Unit = {
     syncLock.synchronized {
       syncToFile()
     }
   }
 
   val syncThread = new Thread(new Runnable() {
-    override def run() {
+    override def run(): Unit = {
       while(true) {
         Thread.sleep(500)
         syncLock.synchronized {

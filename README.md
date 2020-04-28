@@ -36,7 +36,12 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
                     "port": 27017,
                     "host": "127.0.0.1"
                 }
-            ]
+            ],
+            "auth": {
+                "username": "root",
+                "password": "just4mongo",
+                "database": "admin"
+            }
         },
         "include_fields": [
             "_id",
@@ -47,7 +52,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
     "elasticsearch": {
         "index": "test-users",
         "cluster": {
-            "name": "cluster1",
+            "name": "docker-cluster",
             "servers": [
                 {
                     "port": 9200,
@@ -56,7 +61,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
             ]
         },
         "creator": {
-            "mapping": "{\"properties\":{\"title\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",
+            "mapping": "{\"properties\":{\"nickname\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",
             "settings": "{\"analysis\":{\"normalizer\":{\"to_lowercase\":{\"type\":\"custom\",\"filter\":[\"lowercase\"]}}}}"
         }
     }

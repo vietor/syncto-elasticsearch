@@ -1,10 +1,9 @@
 package syncd.engine
 
-import java.util.{Map, HashMap}
-import java.util.ArrayList
+import java.util.{Map, HashMap, ArrayList}
 import java.util.TimeZone
 import org.slf4j.LoggerFactory
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import org.eclipse.jetty.http.MimeTypes
 import org.eclipse.jetty.server.Server
@@ -20,7 +19,7 @@ import syncd.utils._
 import syncd.mongodb._
 import syncd.elasticsearch._
 
-class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
+class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
   private val tsForUptime = SomeUtil.getTimestamp()
   private val logger = LoggerFactory.getLogger(getClass().getName())
   private val buildVersion = {
@@ -60,7 +59,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
     })
   }
 
-  private def sendResponse[T](response: HttpServletResponse, responseData: T) {
+  private def sendResponse[T](response: HttpServletResponse, responseData: T): Unit = {
     response.setContentType("application/json; charset=utf-8")
     response.setStatus(HttpServletResponse.SC_OK)
     response.getWriter.print(JsonUtil.writeValueAsPrettyString(responseData))
@@ -77,7 +76,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
       }
     }
 
-    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
       if(target == "/_status" && request.getMethod() == "GET") {
         baseRequest.setHandled(true)
 
@@ -140,7 +139,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
   }
 
   val createHandler = new AbstractHandler() {
-    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
       if(target.matches("^\\/_worker\\/[^\\/]+\\/_meta$") && request.getMethod() == "GET") {
         baseRequest.setHandled(true)
 
@@ -225,7 +224,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
   }
 
   val startHandler = new AbstractHandler() {
-    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
       if(target.matches("^\\/_worker\\/[^\\/]+\\/start") && request.getMethod() == "POST") {
         baseRequest.setHandled(true)
 
@@ -259,7 +258,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
   }
 
   val stopHandler = new AbstractHandler() {
-    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
       if(target.matches("^\\/_worker\\/[^\\/]+\\/stop") && request.getMethod() == "POST") {
         baseRequest.setHandled(true)
 
@@ -293,7 +292,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
   }
 
   val deleteHandler = new AbstractHandler() {
-    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+    override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
       if(target.matches("^\\/_worker\\/[^/]+$") && request.getMethod() == "DELETE") {
         baseRequest.setHandled(true)
 
@@ -354,7 +353,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
     collection
   });
 
-  def start() {
+  def start(): Unit = {
     logger.info("Start rest api in port {}", port)
 
     lock.synchronized {
@@ -366,7 +365,7 @@ class WebSynchronManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDataba
     webServer.start()
   }
 
-  def stop() {
+  def stop(): Unit = {
     logger.info("Start rest api stop")
 
     webServer.stop()

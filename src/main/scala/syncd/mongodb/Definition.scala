@@ -10,8 +10,8 @@ case class MgServer(
 
 case class MgAuth(
   username: String,
-  database: String,
-  password: String
+  password: String,
+  database: String
 )
 
 case class MgCluster(

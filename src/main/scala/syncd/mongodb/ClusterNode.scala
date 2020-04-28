@@ -1,14 +1,14 @@
 package syncd.mongodb
 
 import java.lang.Integer
-import java.util.ArrayList
-import scala.collection.JavaConverters._
+import java.util.{ArrayList}
+import scala.util.Using
+import scala.jdk.CollectionConverters._
 
 import org.bson._
 import org.bson.types._
 import com.mongodb._
 import com.mongodb.client.MongoCollection
-import syncd.utils.Managed._
 
 class MgClusterNode(cluster: MgCluster) {
 
@@ -37,7 +37,6 @@ class MgClusterNode(cluster: MgCluster) {
       .get("process").toString().toLowerCase().contains("mongos")
   }
 
-
   private def getOplogCollectionName(client: MongoClient): String = {
     val collections = new ArrayList[String]()
     client.getDatabase(MgConstants.LOCAL_DATABASE).listCollectionNames().into(collections);
@@ -51,7 +50,7 @@ class MgClusterNode(cluster: MgCluster) {
 
   private def getMgTimestamp(client: MongoClient, oplogName: String): MgTimestamp = {
     val oplogCollection = client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(oplogName, classOf[BasicDBObject])
-    using(oplogCollection.find().sort(new BasicDBObject("$natural", -1)).limit(1).iterator()) {
+    Using.resource(oplogCollection.find().sort(new BasicDBObject("$natural", -1)).limit(1).iterator()) {
       cursor => {
         if(!cursor.hasNext())
           MgTimestamp(0, 0)
@@ -64,7 +63,7 @@ class MgClusterNode(cluster: MgCluster) {
   private val serverNode = {
     if(isMongos()) {
       MgServerNode(true, new ArrayList[MgShardNode]() {
-        using(clusterClient.getDatabase(MgConstants.CONFIG_DATABASE).getCollection(MgConstants.SHARD_COLLECTION, classOf[BasicDBObject]).find().iterator()) {
+        Using.resource(clusterClient.getDatabase(MgConstants.CONFIG_DATABASE).getCollection(MgConstants.SHARD_COLLECTION, classOf[BasicDBObject]).find().iterator()) {
           cursor => {
             while(cursor.hasNext()) {
               val item = cursor.next()
@@ -227,7 +226,7 @@ object MgClusterNode {
     ImportContext(cluster.getClient(), config)
   }
 
-  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MgRecord) => Int) {
+  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MgRecord) => Int): Unit = {
     val client = context.client
     val config = context.config
 
@@ -236,7 +235,7 @@ object MgClusterNode {
     val collection = client.getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject])
     while(inProgress) {
       try {
-        using(collection.find({
+        Using.resource(collection.find({
           if(lastId != null)
             new BasicDBObject("_id", new BasicDBObject("$gt", lastId))
           else
@@ -305,7 +304,7 @@ object MgClusterNode {
     )
   }
 
-  def syncCollectionOplog(context: OplogContext, timestamp: MgTimestamp, iterate: (MgOpRecord) => Int) {
+  def syncCollectionOplog(context: OplogContext, timestamp: MgTimestamp, iterate: (MgOpRecord) => Int): Unit = {
     val client = context.client
     val config = context.config
     val collection = context.collection
@@ -333,7 +332,7 @@ object MgClusterNode {
     }
 
     def fetchOriginDBObject(timestamp: MgTimestamp, op: Int, _id: Object, fields: BasicDBObject): MgOpRecord = {
-      using(collection.find(new BasicDBObject("_id", _id)).projection(fields).iterator()) {
+      Using.resource(collection.find(new BasicDBObject("_id", _id)).projection(fields).iterator()) {
         cursor => {
           if(!cursor.hasNext())
             MgOpRecord(timestamp, MgConstants.OP_IGNORE)
@@ -345,7 +344,7 @@ object MgClusterNode {
 
     val ns = config.db + "." + config.collection
     val oplogrs = client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(context.oplogName, classOf[BasicDBObject])
-    using(oplogrs.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
+    Using.resource(oplogrs.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
       cursor => {
         var inProgress: Boolean = true
         while(inProgress && cursor.hasNext()) {
