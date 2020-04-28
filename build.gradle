@@ -25,10 +25,6 @@ dependencies {
 
 mainClassName = "RunMain"
 
-// tasks.withType(ScalaCompile) {
-//     scalaCompileOptions.additionalParameters = ["-nowarn"]
-// }
-
 jar {
     manifest {
         attributes(
