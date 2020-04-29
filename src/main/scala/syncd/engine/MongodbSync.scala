@@ -18,16 +18,12 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     ktvtStore.put("status", "step", step)
   }
 
-  private def readOplogTimestamp(shard: MgShardNode): MgTimestamp = {
+  private def readOplogTimestamp(shard: String, opTimestamp: MgTimestamp): MgTimestamp = {
     try {
-      JsonUtil.readValue(ktvtStore.get("oplog", shard.name, JsonUtil.writeValueAsString(shard.timestamp)), classOf[MgTimestamp])
+      JsonUtil.readValue(ktvtStore.get("oplog", shard, JsonUtil.writeValueAsString(opTimestamp)), classOf[MgTimestamp])
     } catch {
-      case _: Throwable => shard.timestamp
+      case _: Throwable => opTimestamp
     }
-  }
-
-  private def storeOplogTimestamp(shard: MgShardNode, opTimestamp: MgTimestamp): Unit = {
-    ktvtStore.put("oplog", shard.name, JsonUtil.writeValueAsString(opTimestamp))
   }
 
   private def storeOplogTimestamp(shard: String, opTimestamp: MgTimestamp): Unit = {
@@ -45,7 +41,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
 
     override def run(): Unit = {
-      var opTimestamp = readOplogTimestamp(shard)
+      var opTimestamp = readOplogTimestamp(shard.name, shard.timestamp)
 
       try {
         while(true) {
@@ -161,7 +157,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             put("completed_ts", completed_ts.toString)
           })
           mgCluster.getServerNode().shards.forEach(shard =>
-            storeOplogTimestamp(shard, shard.timestamp)
+            storeOplogTimestamp(shard.name, shard.timestamp)
           )
         }
 
