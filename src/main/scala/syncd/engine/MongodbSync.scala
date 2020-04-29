@@ -159,6 +159,8 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
           )
         }
 
+        setStatusStep("OPLOG")
+
         mgCluster.getServerNode().shards.forEach(shard => {
           val thread = new Thread(new OplogThread(mgCluster, shard))
           thread.setDaemon(true)
@@ -166,7 +168,6 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
           shardStatus.put(shard.name, new ShardStatus())
         })
 
-        setStatusStep("OPLOG")
         oplogThreads.forEach(thread =>
           thread.start()
         )

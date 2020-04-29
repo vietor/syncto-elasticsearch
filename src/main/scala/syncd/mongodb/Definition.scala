@@ -1,7 +1,7 @@
 package syncd.mongodb
 
-import java.util.ArrayList
-import com.mongodb.DBObject
+import org.bson.BSONObject
+import java.util.{ArrayList}
 
 case class MgServer(
   host: String,
@@ -51,6 +51,6 @@ case class MgRecord(
 case class MgOpRecord(
   ts: MgTimestamp,
   op: Int,
-  id: Object = null,
-  doc: DBObject = null
+  id: Any = null,
+  doc: BSONObject = null
 )
