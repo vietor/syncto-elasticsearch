@@ -44,8 +44,8 @@ case class MgServerNode(
 )
 
 case class MgRecord(
-  id: Object,
-  doc: DBObject
+  id: Any,
+  doc: BSONObject
 )
 
 case class MgOpRecord(
