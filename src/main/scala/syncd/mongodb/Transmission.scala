@@ -112,9 +112,23 @@ object MgTransmission {
     ImportContext(cluster.getClient(), config)
   }
 
-  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MgRecord) => Int): Unit = {
+  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MgRecord) => Unit): Unit = {
     val client = context.client
     val config = context.config
+
+    val theProjection = {
+      if(config.include_fields == null || config.include_fields.size() < 1)
+        new BasicDBObject()
+      else {
+        new BasicDBObject() {
+          put("_id", 1: Integer)
+          config.include_fields.forEach(key =>
+            put(key, 1: Integer)
+          )
+        }
+      }
+    }
+    val theSort = new BasicDBObject("_id", 1)
 
     var lastId: Object = null
     var inProgress: Boolean = true
@@ -126,23 +140,12 @@ object MgTransmission {
             new BasicDBObject("_id", new BasicDBObject("$gt", lastId))
           else
             new BasicDBObject()
-        }).projection({
-          if(config.include_fields == null || config.include_fields.size() < 1)
-            new BasicDBObject()
-          else {
-            new BasicDBObject() {
-              put("_id", 1: Integer)
-              config.include_fields.forEach(key =>
-                put(key, 1: Integer)
-              )
-            }
-          }
-        }).sort(new BasicDBObject("_id", 1)).iterator()) {
+        }).projection(theProjection).sort(theSort).iterator()) {
           cursor => {
-            while (inProgress && cursor.hasNext()) {
+            while (cursor.hasNext()) {
               val row =  cursor.next();
               lastId = row.get("_id")
-              inProgress = iterate(MgRecord(row.get("_id"), filterDBObject(config, row))) == MgConstants.RECORD_NEXT
+              iterate(MgRecord(row.get("_id"), filterDBObject(config, row)))
             }
             inProgress = false;
           }
@@ -190,7 +193,7 @@ object MgTransmission {
     )
   }
 
-  def syncCollectionOplog(context: OplogContext, timestamp: MgTimestamp, iterate: (MgOpRecord) => Int): Unit = {
+  def syncCollectionOplog(context: OplogContext, timestamp: MgTimestamp, iterate: (MgOpRecord) => Unit): Unit = {
     val client = context.client
     val config = context.config
     val collection = context.collection
@@ -232,8 +235,7 @@ object MgTransmission {
     val oplogrs = client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(context.oplogName, classOf[BasicDBObject])
     Using.resource(oplogrs.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
       cursor => {
-        var inProgress: Boolean = true
-        while(inProgress && cursor.hasNext()) {
+        while(cursor.hasNext()) {
           val row = cursor.next()
           val current = MgClientUtils.convertTimestamp(row.get("ts").asInstanceOf[BSONTimestamp])
           val opRecord = {
@@ -277,7 +279,7 @@ object MgTransmission {
                 }
               }
           }
-          inProgress = iterate(opRecord) == MgConstants.RECORD_NEXT
+          iterate(opRecord)
         }
       }
     }

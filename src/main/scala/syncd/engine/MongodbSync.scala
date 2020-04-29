@@ -50,7 +50,6 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             MgTransmission.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
               opTimestamp = record.ts
               oplogRecordQueue.put(OplogRecord(shard.name, record))
-              MgConstants.RECORD_NEXT
             })
           } catch {
             case e: Throwable => {
@@ -146,7 +145,6 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
             ktvtStore.put("import", "count", count.toString)
             ktvtStore.put("import", "duration", (SomeUtil.getTimestamp() - start_ts).toString)
-            MgConstants.RECORD_NEXT
           })
           bulkProcessor.flush()
           val completed_ts = SomeUtil.getTimestamp

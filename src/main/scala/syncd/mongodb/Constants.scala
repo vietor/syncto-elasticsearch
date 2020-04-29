@@ -8,9 +8,6 @@ object MgConstants {
   val OPLOG_COLLECTION1 = "oplog.rs"
   val OPLOG_COLLECTION2 = "oplog.$main"
 
-  val RECORD_NEXT = 0
-  val RECORD_STOP = 1
-
   val OP_IGNORE = 0
   val OP_CREATE = 1
   val OP_UPDATE = 2
