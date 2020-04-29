@@ -38,7 +38,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
   private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncdConfig.batchQueueSize)
 
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
-    val context = MgClusterNode.createOplogContext(cluster, shard, mgConfig)
+    val context = MgTransmission.createOplogContext(cluster, shard, mgConfig)
 
     override def run(): Unit = {
       var opTimestamp = readOplogTimestamp(shard.name, shard.timestamp)
@@ -47,7 +47,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
         while(true) {
           var sleepMS = syncdConfig.intervalOplogMS
           try {
-            MgClusterNode.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
+            MgTransmission.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
               opTimestamp = record.ts
               oplogRecordQueue.put(OplogRecord(shard.name, record))
               MgConstants.RECORD_NEXT
@@ -139,7 +139,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
 
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
-          MgClusterNode.importCollection(MgClusterNode.createImportContext(mgCluster, mgConfig), ()=> {
+          MgTransmission.importCollection(MgTransmission.createImportContext(mgCluster, mgConfig), ()=> {
             syncdConfig.intervalRetryMS
           }, (record: MgRecord) => {
             count += 1
