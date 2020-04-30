@@ -31,6 +31,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
     ktvtStore.put("oplog", "master", JsonUtil.writeValueAsString(opTimestamp))
   }
 
+  private val oplogRecordQueue = new LinkedBlockingQueue[MyOpRecord](syncdConfig.batchQueueSize)
 
   private class OplogThread(cluster: MyClusterNode) extends Runnable {
     override def run(): Unit = {
@@ -132,6 +133,11 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
             logger.error("[" + syncKey + "] MySQL to ElasticSearch Starting", e)
         }
       }
+
+
+
+      if(bulkProcessor != null)
+        bulkProcessor.close()
     }
   }
 

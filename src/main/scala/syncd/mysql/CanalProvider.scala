@@ -8,28 +8,26 @@ import com.alibaba.otter.canal.parse.inbound._;
 import com.alibaba.otter.canal.parse.inbound.mysql.dbsync._;
 import com.alibaba.otter.canal.parse.inbound.mysql.MysqlConnection;
 
-class CanalProvider(config: MyConfig) extends  AutoCloseable {
+class CanalProvider(config: MyConfig) {
   var mainConnection: MysqlConnection = null
   var metaConnection: MysqlConnection = null
   var tableMetaCache: TableMetaCache = null
   var binlogParser: LogEventConvert = null
 
-  def open(): Unit = {
+  private def active(): Unit = {
     if(mainConnection == null) {
       mainConnection = new MysqlConnection(new InetSocketAddress(config.server.host, config.server.port), config.server.user, config.server.password);
+      mainConnection.connect()
     }
     if(!mainConnection.isConnected()) {
-      mainConnection.connect()
-    } else {
       mainConnection.reconnect()
     }
 
     if(metaConnection == null) {
       metaConnection = mainConnection.fork()
+      metaConnection.connect()
     }
     if(!metaConnection.isConnected()) {
-      metaConnection.connect()
-    } else {
       metaConnection.reconnect()
     }
 
@@ -45,7 +43,7 @@ class CanalProvider(config: MyConfig) extends  AutoCloseable {
     }
   }
 
-  def close(): Unit = {
+  def release(): Unit = {
     if(binlogParser != null) {
       binlogParser.stop()
     }
@@ -61,6 +59,8 @@ class CanalProvider(config: MyConfig) extends  AutoCloseable {
   }
 
   def dump(start: MyTimestamp, iterate: (MyTimestamp,RowChange) => Boolean): Unit = {
+    active()
+
     mainConnection.dump(start.file, start.position, new SinkFunction[LogEvent]() {
       def sink(event: LogEvent): Boolean = {
         val timestamp = MyTimestamp(

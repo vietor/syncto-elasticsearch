@@ -33,8 +33,8 @@ case class MyRecord(
   doc: BSONObject
 )
 
-case class MgOpRecord(
+case class MyOpRecord(
+  ts: MyTimestamp,
   op: Int,
-  id: Any = null,
-  doc: BSONObject = null
+  docs: ArrayList[MyRecord] = null
 )
