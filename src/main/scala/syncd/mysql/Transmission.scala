@@ -13,6 +13,11 @@ object MyTransmission {
     columnTypes: HashMap[String, Int]
   )
 
+  case class OplogContext(
+    config: MyConfig,
+    oplogName: String
+  )
+
   private def readResultSetValue(columnTypes: HashMap[String, Int], key: String, rs: ResultSet): Any = {
     columnTypes.get(key) match {
       case n if n == MyConstants.TYPE_LONG => rs.getLong(key)

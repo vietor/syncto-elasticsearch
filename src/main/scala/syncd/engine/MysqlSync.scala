@@ -31,6 +31,13 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
     ktvtStore.put("oplog", "master", JsonUtil.writeValueAsString(opTimestamp))
   }
 
+
+  private class OplogThread(cluster: MyClusterNode) extends Runnable {
+    override def run(): Unit = {
+      var opTimestamp = readOplogTimestamp(cluster.getServerNode().timestamp)
+    }
+  }
+
   private class MainThread extends Runnable {
     override def run(): Unit = {
       var myCluster: MyClusterNode = null
@@ -105,10 +112,18 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
             put("completed", "ok")
             put("completed_ts", completed_ts.toString)
           })
+          storeOplogTimestamp(myCluster.getServerNode().timestamp)
         }
 
         setStatusStep("OPLOG")
-        storeOplogTimestamp(myCluster.getServerNode().timestamp)
+
+        val thread = new Thread(new OplogThread(myCluster))
+        thread.setDaemon(true)
+        oplogThreads.add(thread)
+
+        oplogThreads.forEach(thread =>
+          thread.start()
+        )
 
       } catch {
         case e: Throwable => {
@@ -121,12 +136,14 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
   }
 
   private var mainThread: Thread = null
+  private val oplogThreads = new ArrayList[Thread]()
 
   override def start(): Unit = {
     if(mainThread != null)
       throw new IllegalStateException("Sync already started")
-
-    new MainThread().run()
+    mainThread = new Thread(new MainThread())
+    mainThread.setDaemon(true)
+    mainThread.start()
   }
 
   override def stop(): Unit = {
@@ -134,6 +151,12 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
       if(mainThread != null) {
         mainThread.interrupt()
         mainThread = null
+      }
+      if(oplogThreads.size() > 0) {
+        oplogThreads.forEach(thread =>
+          thread.interrupt()
+        )
+        oplogThreads.clear()
       }
     }
     finally {

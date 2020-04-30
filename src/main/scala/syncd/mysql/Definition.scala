@@ -32,3 +32,9 @@ case class MyRecord(
   id: Any,
   doc: BSONObject
 )
+
+case class MgOpRecord(
+  op: Int,
+  id: Any = null,
+  doc: BSONObject = null
+)
