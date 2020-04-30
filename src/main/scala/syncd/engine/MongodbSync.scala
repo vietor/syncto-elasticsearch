@@ -170,8 +170,8 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
       }
 
       if(getStatus() == Status.RUNNING) {
+        bulkProcessor.resetSync()
 
-        var lastActionTS = bulkProcessor.getActionTS()
         while(true) {
           try {
             val record = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
@@ -182,13 +182,13 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
               status.timestamp = record.ts
 
               record.op match {
-                case MgConstants.OP_CREATE =>
+                case MgConstants.OP_INSERT =>
                   bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
                 case MgConstants.OP_UPDATE =>
                   bulkProcessor.update(record.id.toString, JsonUtil.writeValueAsString(record.doc))
                 case MgConstants.OP_DELETE =>
                   bulkProcessor.delete(record.id.toString)
-                case MgConstants.OP_RECREATE =>
+                case MgConstants.OP_REINSERT =>
                   bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
                 case _ => {}
               }
@@ -196,9 +196,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             if(record == null)
               bulkProcessor.flush()
 
-            val actionTS = bulkProcessor.getSystemTS()
-            if(lastActionTS != actionTS) {
-              lastActionTS = actionTS
+            if(bulkProcessor.detectSync()) {
               for((shard, status) <- shardStatus.asScala) {
                 if(status.count > 0) {
                   status.count = 0

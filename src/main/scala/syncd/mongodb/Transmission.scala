@@ -238,15 +238,15 @@ object MgTransmission {
               row.get("op").toString match {
                 case "i" => {
                   val doc = DBOUtil.child(row, "o")
-                  MgOpRecord(shard.name, current, MgConstants.OP_CREATE, doc.get("_id"), DBOUtil.pick(doc, config.include_fields))
+                  MgOpRecord(shard.name, current, MgConstants.OP_INSERT, doc.get("_id"), DBOUtil.pick(doc, config.include_fields))
                 }
                 case "u" => {
                   val _id = DBOUtil.child(row, "o2").get("_id")
                   val update = DBOUtil.child(row, "o")
                   if(!update.keySet().asScala.exists(x => x.substring(0, 1) == "$"))
-                    MgOpRecord(shard.name, current, MgConstants.OP_RECREATE, _id, DBOUtil.pick(update, config.include_fields))
+                    MgOpRecord(shard.name, current, MgConstants.OP_REINSERT, _id, DBOUtil.pick(update, config.include_fields))
                   else if(update.containsField("$unset") && DBOUtil.includes(DBOUtil.child(update, "$unset"), config.include_fields))
-                    fetchFromMaster(current, MgConstants.OP_RECREATE, _id, context.fetchFields)
+                    fetchFromMaster(current, MgConstants.OP_REINSERT, _id, context.fetchFields)
                   else if(!update.containsField("$set"))
                     MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
                   else{

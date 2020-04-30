@@ -24,11 +24,26 @@ case class EsBulkParameters(
   globalErrorWatcher: (Throwable) => Unit = null
 )
 
-trait EsBulkProcessorTimer {
-  def getTimestamp(): Long
+trait EsBulkSyncTimer {
+  def getSyncTime(): Long
 }
 
-class EsBulkProcessor(index: String, timer: EsBulkProcessorTimer, processor: BulkProcessor) {
+class EsBulkProcessor(index: String, timer: EsBulkSyncTimer, processor: BulkProcessor) {
+
+  private var lastSyncTime: Long = timer.getSyncTime()
+
+  def resetSync(): Unit = {
+    lastSyncTime = timer.getSyncTime()
+  }
+
+  def detectSync(): Boolean = {
+    val time = timer.getSyncTime()
+    var changed = time != lastSyncTime
+    if(changed) {
+      lastSyncTime = time
+    }
+    changed
+  }
 
   def index(id: String, doc: String): Unit = {
     processor.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, id).source(doc, XContentType.JSON))
@@ -53,15 +68,6 @@ class EsBulkProcessor(index: String, timer: EsBulkProcessorTimer, processor: Bul
       case _: Throwable => {}
     }
   }
-
-  def getActionTS(): Long = {
-    timer.getTimestamp()
-  }
-
-  def getSystemTS(): Long = {
-    SomeUtil.getTimestamp()
-  }
-
 }
 
 class EsClusterNode(cluster: EsCluster) {
@@ -117,19 +123,19 @@ class EsClusterNode(cluster: EsCluster) {
   }
 
   def createBulkProcessor(index: String, parameters: EsBulkParameters): EsBulkProcessor = {
-    abstract class EsBulkProcessorListener extends EsBulkProcessorTimer with BulkProcessor.Listener{
+    abstract class EsBulkProcessorListener extends EsBulkSyncTimer with BulkProcessor.Listener{}
 
-    }
     val listener = new EsBulkProcessorListener() {
-      private var timestamp: Long = 0
+      private var syncTime: Long = System.currentTimeMillis
 
-      override def getTimestamp(): Long = {
-        timestamp
+      override def getSyncTime(): Long = {
+        syncTime
       }
       override def beforeBulk(executionId: Long, request: BulkRequest): Unit = {
       }
       override def afterBulk(executionId: Long, request: BulkRequest, response: BulkResponse): Unit = {
-        timestamp = SomeUtil.getTimestamp()
+        syncTime = System.currentTimeMillis
+
         if(parameters.itemsErrorWatcher != null) {
           if(response.hasFailures()) {
             for(item <- response.getItems()) {

@@ -9,8 +9,8 @@ object MgConstants {
   val OPLOG_COLLECTION2 = "oplog.$main"
 
   val OP_IGNORE = 0
-  val OP_CREATE = 1
+  val OP_INSERT = 1
   val OP_UPDATE = 2
   val OP_DELETE = 3
-  val OP_RECREATE = 4
+  val OP_REINSERT = 4
 }
