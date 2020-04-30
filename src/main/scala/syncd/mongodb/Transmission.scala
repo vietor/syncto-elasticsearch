@@ -116,9 +116,9 @@ object MgTransmission {
 
   case class OplogContext(
     config: MgConfig,
+    shard: MgShardNode,
     client: MongoClient,
     fetchFields: BasicDBObject,
-    oplogName: String,
     masterCollection: MongoCollection[BasicDBObject]
   )
 
@@ -184,6 +184,7 @@ object MgTransmission {
   def createOplogContext(cluster: MgClusterNode, shard: MgShardNode, config: MgConfig): OplogContext = {
     OplogContext(
       config,
+      shard,
       MgClientUtils.createClient(shard.replicas, config.cluster.auth),
       {
         if(config.include_fields == null || config.include_fields.size() < 1)
@@ -196,13 +197,13 @@ object MgTransmission {
           }
         }
       },
-      shard.oplogName,
       cluster.getClient().getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject]),
     )
   }
 
   def syncCollectionOplog(context: OplogContext, timestamp: MgTimestamp, iterate: (MgOpRecord) => Unit): Unit = {
     val config = context.config
+    val shard = context.shard
 
     def isInternalMoving(row: DBObject): Boolean = {
       val KEY = "fromMigrate"
@@ -213,15 +214,15 @@ object MgTransmission {
       Using.resource(context.masterCollection.find(new BasicDBObject("_id", _id)).projection(fields).iterator()) {
         cursor => {
           if(!cursor.hasNext())
-            MgOpRecord(timestamp, MgConstants.OP_IGNORE)
+            MgOpRecord(shard.name, timestamp, MgConstants.OP_IGNORE)
           else
-            MgOpRecord(timestamp, op, _id, DBOUtil.pick(cursor.next(), config.include_fields))
+            MgOpRecord(shard.name, timestamp, op, _id, DBOUtil.pick(cursor.next(), config.include_fields))
         }
       }
     }
 
     val ns = config.db + "." + config.collection
-    val oplogCollection = context.client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(context.oplogName, classOf[BasicDBObject])
+    val oplogCollection = context.client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(shard.oplogName, classOf[BasicDBObject])
 
     Using.resource(oplogCollection.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
       cursor => {
@@ -230,42 +231,42 @@ object MgTransmission {
           val current = MgClientUtils.convertTimestamp(row.get("ts").asInstanceOf[BSONTimestamp])
           val opRecord = {
             if(row.get("ns") != ns)
-              MgOpRecord(current, MgConstants.OP_IGNORE)
+              MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
             else if(isInternalMoving(row))
-              MgOpRecord(current, MgConstants.OP_IGNORE)
+              MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
             else
               row.get("op").toString match {
                 case "i" => {
                   val doc = DBOUtil.child(row, "o")
-                  MgOpRecord(current, MgConstants.OP_CREATE, doc.get("_id"), DBOUtil.pick(doc, config.include_fields))
+                  MgOpRecord(shard.name, current, MgConstants.OP_CREATE, doc.get("_id"), DBOUtil.pick(doc, config.include_fields))
                 }
                 case "u" => {
                   val _id = DBOUtil.child(row, "o2").get("_id")
                   val update = DBOUtil.child(row, "o")
                   if(!update.keySet().asScala.exists(x => x.substring(0, 1) == "$"))
-                    MgOpRecord(current, MgConstants.OP_RECREATE, _id, DBOUtil.pick(update, config.include_fields))
+                    MgOpRecord(shard.name, current, MgConstants.OP_RECREATE, _id, DBOUtil.pick(update, config.include_fields))
                   else if(update.containsField("$unset") && DBOUtil.includes(DBOUtil.child(update, "$unset"), config.include_fields))
                     fetchFromMaster(current, MgConstants.OP_RECREATE, _id, context.fetchFields)
                   else if(!update.containsField("$set"))
-                    MgOpRecord(current, MgConstants.OP_IGNORE)
+                    MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
                   else{
                     val (parted, doc) = DBOUtil.pickForUpdate(DBOUtil.child(update, "$set"), config.include_fields)
                     if(parted != null)
                       fetchFromMaster(current, MgConstants.OP_UPDATE, _id, parted)
                     else {
                       if(doc.keySet().size() < 1)
-                        MgOpRecord(current, MgConstants.OP_IGNORE)
+                        MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
                       else
-                        MgOpRecord(current, MgConstants.OP_UPDATE, _id, doc)
+                        MgOpRecord(shard.name, current, MgConstants.OP_UPDATE, _id, doc)
                     }
                   }
                 }
                 case "d" => {
                   val _id = DBOUtil.child(row, "o").get("_id")
-                  MgOpRecord(current, MgConstants.OP_DELETE, _id)
+                  MgOpRecord(shard.name, current, MgConstants.OP_DELETE, _id)
                 }
                 case _ => {
-                  MgOpRecord(current, MgConstants.OP_IGNORE)
+                  MgOpRecord(shard.name, current, MgConstants.OP_IGNORE)
                 }
               }
           }

@@ -30,12 +30,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     ktvtStore.put("oplog", shard, JsonUtil.writeValueAsString(opTimestamp))
   }
 
-  private case class OplogRecord(
-    shard: String,
-    record: MgOpRecord
-  )
-
-  private val oplogRecordQueue = new LinkedBlockingQueue[OplogRecord](syncdConfig.batchQueueSize)
+  private val oplogRecordQueue = new LinkedBlockingQueue[MgOpRecord](syncdConfig.batchQueueSize)
 
   private class OplogThread(cluster: MgClusterNode, shard: MgShardNode) extends Runnable {
     val context = MgTransmission.createOplogContext(cluster, shard, mgConfig)
@@ -49,7 +44,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
           try {
             MgTransmission.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
               opTimestamp = record.ts
-              oplogRecordQueue.put(OplogRecord(shard.name, record))
+              oplogRecordQueue.put(record)
             })
           } catch {
             case e: Throwable => {
@@ -117,19 +112,17 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             esCluster.create(esConfig.index, esConfig.creator.settings, esConfig.creator.mapping);
         }
 
-        bulkProcessor = esCluster.createBulkProcessor(
-          esConfig.index,
-          EsBulkParameters(
-            actions = syncdConfig.batchQueueSize,
-            bytesOnMB = syncdConfig.batchSizeMB,
-            flushIntervalOnMillis = syncdConfig.intervalOplogMS,
-            itemsErrorWatcher = (e: Throwable) => {
-              logger.error("[" + syncKey + "] Bulk items ", e)
-            },
-            globalErrorWatcher = (e: Throwable) => {
-              logger.error("[" + syncKey + "] Bulk processor", e)
-            }
-          ))
+        bulkProcessor = esCluster.createBulkProcessor(esConfig.index, EsBulkParameters(
+          actions = syncdConfig.batchQueueSize,
+          bytesOnMB = syncdConfig.batchSizeMB,
+          flushIntervalOnMillis = syncdConfig.intervalOplogMS,
+          itemsErrorWatcher = (e: Throwable) => {
+            logger.error("[" + syncKey + "] Bulk items ", e)
+          },
+          globalErrorWatcher = (e: Throwable) => {
+            logger.error("[" + syncKey + "] Bulk processor", e)
+          }
+        ))
 
         setStatus(Status.RUNNING)
 
@@ -160,17 +153,13 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
         }
 
         setStatusStep("OPLOG")
-
         mgCluster.getServerNode().shards.forEach(shard => {
+          shardStatus.put(shard.name, new ShardStatus())
           val thread = new Thread(new OplogThread(mgCluster, shard))
           thread.setDaemon(true)
           oplogThreads.add(thread)
-          shardStatus.put(shard.name, new ShardStatus())
         })
-
-        oplogThreads.forEach(thread =>
-          thread.start()
-        )
+        oplogThreads.forEach(thread => thread.start())
 
       } catch {
         case e: Throwable => {
@@ -185,10 +174,9 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
         var lastActionTS = bulkProcessor.getActionTS()
         while(true) {
           try {
-            val oplogRecord = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
-            if(oplogRecord != null) {
-              val record = oplogRecord.record
-              val status = shardStatus.get(oplogRecord.shard)
+            val record = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
+            if(record != null) {
+              val status = shardStatus.get(record.shard)
 
               status.count += 1
               status.timestamp = record.ts
@@ -205,7 +193,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
                 case _ => {}
               }
             }
-            if(oplogRecord == null)
+            if(record == null)
               bulkProcessor.flush()
 
             val actionTS = bulkProcessor.getSystemTS()
@@ -229,6 +217,8 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
 
       if(bulkProcessor != null)
         bulkProcessor.close()
+
+      oplogThreads.forEach(thread => thread.interrupt())
     }
   }
 
@@ -250,9 +240,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
         mainThread = null
       }
       if(oplogThreads.size() > 0) {
-        oplogThreads.forEach(thread =>
-          thread.interrupt()
-        )
+        oplogThreads.forEach(thread =>thread.interrupt())
         oplogThreads.clear()
       }
     }

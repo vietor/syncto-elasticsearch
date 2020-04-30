@@ -49,6 +49,7 @@ case class MgRecord(
 )
 
 case class MgOpRecord(
+  shard: String,
   ts: MgTimestamp,
   op: Int,
   id: Any = null,
