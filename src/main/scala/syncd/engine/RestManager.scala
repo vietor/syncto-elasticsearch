@@ -1,6 +1,6 @@
 package syncd.engine
 
-import java.util.{Map, HashMap, ArrayList}
+import java.util.{HashMap, ArrayList}
 import java.util.TimeZone
 import org.slf4j.LoggerFactory
 import scala.jdk.CollectionConverters._
@@ -34,6 +34,7 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
   private case class Worker(
     key: String,
     meta: String,
+    source: String,
     sync: AbstractSync
   )
 
@@ -49,13 +50,13 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
 
           val ktvtStore = ktvtDB.getCollection(key)
           val esConfig = JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig])
-          val sync = {
+          val (source, sync) = {
             if(body.has("mysql"))
-              new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore)
+              ("mysql", new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore))
             else
-              new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore)
+              ("mongodb", new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore))
           }
-          put(key, Worker(key, meta, sync))
+          put(key, Worker(key, meta, source, sync))
         } catch {
           case e: Throwable => {
             logger.error("Sync " + key, e)
@@ -76,6 +77,7 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
     private def dumpWorkerStatus(worker: Worker, summary: Boolean = false):HashMap[String, Any] = {
       new HashMap[String, Any](){
         put("key", worker.key)
+        put("source", worker.source)
         put("status", worker.sync.getStatusText())
         if(summary)
           put("summary", worker.sync.dumpSummary())
@@ -199,11 +201,11 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
 
               val ktvtStore = ktvtDB.getCollection(key)
               val esConfig = JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig])
-              var sync = {
+              var (source, sync) = {
                 if(body.has("mysql"))
-                  new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore)
+                  ("mysql", new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore))
                 else
-                  new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore)
+                  ("mongodb", new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore))
               }
 
               locales.putAll(key, new HashMap[String, String]() {
@@ -211,7 +213,7 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
                 put("timestamp", SomeUtil.getTimestamp().toString)
               })
               lock.synchronized {
-                workers.put(key, Worker(key, meta, sync))
+                workers.put(key, Worker(key, meta, source, sync))
                 sync.start()
               }
               logger.info("Create worker {}", key)

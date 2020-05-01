@@ -1,7 +1,7 @@
-MongoDB-Sync-Elasticsearch
+SyncTo-Elasticsearch
 ===
 
-A tool for **MongoDB** synchronize to **ElasticSearch**.
+A tool for **MySQL**,**MongoDB** synchronize to **ElasticSearch**.
 
 # REST API
 
@@ -20,10 +20,13 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 
 ### Response
 
-|*Name*|*Type*|*Description*|*Required*|
-|---|---|---|---|
-|mongodb|Object|MongoDB's config|Y|
-|elasticsearch|Object|ElasticSearch config|Y|
+| *Name*        | *Type* | *Description*        | *Required* |
+|---------------|--------|----------------------|------------|
+| mysql         | Object | MySQL config         | Y*         |
+| mongodb       | Object | MongoDB's config     | Y*         |
+| elasticsearch | Object | ElasticSearch config | Y          |
+
+> mysql or mongodb require one
 
 ``` json
 {
@@ -50,7 +53,43 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
         ]
     },
     "elasticsearch": {
-        "index": "test-users",
+        "index": "test-mongo-users",
+        "cluster": {
+            "name": "docker-cluster",
+            "servers": [
+                {
+                    "port": 9200,
+                    "host": "127.0.0.1"
+                }
+            ]
+        },
+        "creator": {
+            "mapping": "{\"properties\":{\"nickname\":{\"type\":\"keyword\",\"normalizer\":\"to_lowercase\",\"null_value\":\"\"}}}",
+            "settings": "{\"analysis\":{\"normalizer\":{\"to_lowercase\":{\"type\":\"custom\",\"filter\":[\"lowercase\"]}}}}"
+        }
+    }
+}
+```
+
+``` json
+{
+    "mysql": {
+        "server": {
+            "host": "127.0.0.1",
+            "port": 3306,
+            "user": "root",
+            "password": "just4myql",
+            "database": "testdb"
+        },
+        "table": "users",
+        "table_pkey": "id",
+        "include_fields": [
+            "nickname",
+            "create_date"
+        ]
+    },
+    "elasticsearch": {
+        "index": "test-mysql-users",
         "cluster": {
             "name": "docker-cluster",
             "servers": [
@@ -91,6 +130,7 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
 ``` json
 {
     "key": "first",
+    "source": "mongodb",
     "status": "RUNNING",
     "summary": {
         "status": {
@@ -157,10 +197,12 @@ A tool for **MongoDB** synchronize to **ElasticSearch**.
     "workers": [
         {
             "key": "first",
+            "source": "mongodb",
             "status": "RUNNING"
         },
         {
             "key": "second",
+            "source": "mysql",
             "status": "RUNNING"
         }
     ],
