@@ -21,21 +21,53 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
 
   private def readOplogTimestamp(opTimestamp: MyTimestamp): MyTimestamp = {
     try {
-      JsonUtil.readValue(ktvtStore.get("oplog", "master", JsonUtil.writeValueAsString(opTimestamp)), classOf[MyTimestamp])
+      JsonUtil.readValue(ktvtStore.get("oplog", "binlog", JsonUtil.writeValueAsString(opTimestamp)), classOf[MyTimestamp])
     } catch {
       case _: Throwable => opTimestamp
     }
   }
 
   private def storeOplogTimestamp(opTimestamp: MyTimestamp): Unit = {
-    ktvtStore.put("oplog", "master", JsonUtil.writeValueAsString(opTimestamp))
+    ktvtStore.put("oplog", "binlog", JsonUtil.writeValueAsString(opTimestamp))
   }
 
   private val oplogRecordQueue = new LinkedBlockingQueue[MyOpRecord](syncdConfig.batchQueueSize)
 
   private class OplogThread(cluster: MyClusterNode) extends Runnable {
+    val context = MyTransmission.createOplogContext(cluster, myConfig)
+
     override def run(): Unit = {
-      var opTimestamp = readOplogTimestamp(cluster.getServerNode().timestamp)
+      var opTimestamp = MyTimestamp("binlog.000004", 4) //readOplogTimestamp(cluster.getServerNode().timestamp)
+
+      try {
+        while(true) {
+          var sleepMS = syncdConfig.intervalOplogMS
+          try {
+            MyTransmission.syncCollectionOplog(context, opTimestamp, (record: MyOpRecord) => {
+              opTimestamp = record.ts
+              oplogRecordQueue.put(record)
+            })
+          } catch {
+            case e: Throwable => {
+              if(!MyClientUtils.isRetrySafety(e)) {
+                if(MyClientUtils.isInterrupted(e))
+                  throw e
+                logger.error("[" + syncKey + "] Fetch oplog", e)
+              }
+              else
+                sleepMS = syncdConfig.intervalRetryMS
+            }
+          }
+          Thread.sleep(sleepMS)
+        }
+      } catch {
+        case e: Throwable => {
+          if(!MyClientUtils.isInterrupted(e))
+            logger.error("[" + syncKey + "] Escape Oplog Thread", e)
+        }
+      }
+
+      MyTransmission.releaseOplogContext(context)
     }
   }
 
@@ -76,19 +108,17 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
             esCluster.create(esConfig.index, esConfig.creator.settings, esConfig.creator.mapping);
         }
 
-        bulkProcessor = esCluster.createBulkProcessor(
-          esConfig.index,
-          EsBulkParameters(
-            actions = syncdConfig.batchQueueSize,
-            bytesOnMB = syncdConfig.batchSizeMB,
-            flushIntervalOnMillis = syncdConfig.intervalOplogMS,
-            itemsErrorWatcher = (e: Throwable) => {
-              logger.error("[" + syncKey + "] Bulk items ", e)
-            },
-            globalErrorWatcher = (e: Throwable) => {
-              logger.error("[" + syncKey + "] Bulk processor", e)
-            }
-          ))
+        bulkProcessor = esCluster.createBulkProcessor(esConfig.index, EsBulkParameters(
+          actions = syncdConfig.batchQueueSize,
+          bytesOnMB = syncdConfig.batchSizeMB,
+          flushIntervalOnMillis = syncdConfig.intervalOplogMS,
+          itemsErrorWatcher = (e: Throwable) => {
+            logger.error("[" + syncKey + "] Bulk items ", e)
+          },
+          globalErrorWatcher = (e: Throwable) => {
+            logger.error("[" + syncKey + "] Bulk processor", e)
+          }
+        ))
 
         setStatus(Status.RUNNING)
 
@@ -117,14 +147,10 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
         }
 
         setStatusStep("OPLOG")
-
         val thread = new Thread(new OplogThread(myCluster))
         thread.setDaemon(true)
         oplogThreads.add(thread)
-
-        oplogThreads.forEach(thread =>
-          thread.start()
-        )
+        oplogThreads.forEach(thread =>thread.start())
 
       } catch {
         case e: Throwable => {
@@ -135,9 +161,10 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
       }
 
 
-
       if(bulkProcessor != null)
         bulkProcessor.close()
+
+      oplogThreads.forEach(thread => thread.interrupt())
     }
   }
 

@@ -86,7 +86,7 @@ object MyTransmission {
 
     context.canalProvider.dump(timestamp, (timestamp: MyTimestamp, rowChange: RowChange) => {
       val opRecord = {
-        if(rowChange != null)
+        if(rowChange == null)
           MyOpRecord(timestamp, MyConstants.OP_IGNORE)
         else {
           val eventType = rowChange.getEventType()

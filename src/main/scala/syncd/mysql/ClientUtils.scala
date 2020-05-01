@@ -14,7 +14,7 @@ object MyClientUtils {
   }
 
   def isInterrupted(e: Throwable): Boolean = {
-    false
+    e.isInstanceOf[InterruptedException]
   }
 
 }
