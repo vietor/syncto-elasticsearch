@@ -10,6 +10,8 @@ import org.bson.types._
 import com.mongodb._
 import com.mongodb.client.MongoCollection
 
+import syncd.engine.SyncdConfig
+
 object MgTransmission {
 
   private object DBOUtil {
@@ -142,7 +144,7 @@ object MgTransmission {
     )
   }
 
-  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MgRecord) => Unit): Unit = {
+  def importCollection(syncdConfig: SyncdConfig, context: ImportContext, iterate: (MgRecord) => Unit): Unit = {
     val config = context.config
 
     var lastId: Object = null
@@ -171,7 +173,7 @@ object MgTransmission {
         case e :Throwable => {
           if(!MgClientUtils.isRetrySafety(e))
             throw e
-          val delayMS = retry()
+          val delayMS = syncdConfig.intervalRetryMS
           if(delayMS < 1)
             inProgress = false
           else

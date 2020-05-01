@@ -134,9 +134,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
 
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
-          MgTransmission.importCollection(MgTransmission.createImportContext(mgCluster, mgConfig), ()=> {
-            syncdConfig.intervalRetryMS
-          }, (record: MgRecord) => {
+          MgTransmission.importCollection(syncdConfig, MgTransmission.createImportContext(mgCluster, mgConfig), (record: MgRecord) => {
             count += 1
             bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
             ktvtStore.put("import", "count", count.toString)

@@ -2,21 +2,6 @@ package syncd.engine
 
 import java.util.Map
 
-object Status {
-  val UNKNOW = 0
-  val STARTING = 1
-  val START_FAILED = 2
-  val RUNNING = 3
-  val STOPPED = 4
-}
-
-case class SyncdConfig(
-  batchSizeMB: Int,
-  batchQueueSize: Int,
-  intervalOplogMS: Int,
-  intervalRetryMS: Int
-)
-
 trait AbstractSync {
   private var currentStatus = Status.UNKNOW
 

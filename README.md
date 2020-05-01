@@ -207,6 +207,7 @@ A tool for **MySQL**,**MongoDB** synchronize to **ElasticSearch**.
         }
     ],
     "config": {
+        "fetch_size": 1000,
         "batch_size_mb": 10,
         "batch_queue_size": 1000,
         "interval_oplog_ms": 500,

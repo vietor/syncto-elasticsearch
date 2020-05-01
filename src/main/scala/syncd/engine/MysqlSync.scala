@@ -130,9 +130,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
 
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
-          MyTransmission.importCollection(MyTransmission.createImportContext(myCluster, myConfig), ()=> {
-            syncdConfig.intervalRetryMS
-          }, (record: MyRecord) => {
+          MyTransmission.importCollection(syncdConfig, MyTransmission.createImportContext(myCluster, myConfig), (record: MyRecord) => {
             count += 1
             bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
             ktvtStore.put("import", "count", count.toString)

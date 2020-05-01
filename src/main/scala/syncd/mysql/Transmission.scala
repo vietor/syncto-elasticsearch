@@ -6,7 +6,9 @@ import scala.jdk.CollectionConverters._
 
 import org.bson.BasicBSONObject
 import java.sql.{Connection, ResultSet}
-import com.alibaba.otter.canal.protocol.CanalEntry._;
+import com.alibaba.otter.canal.protocol.CanalEntry._
+
+import syncd.engine.SyncdConfig
 
 object MyTransmission {
   case class ImportContext(
@@ -27,7 +29,7 @@ object MyTransmission {
     )
   }
 
-  def importCollection(context: ImportContext, retry:()=> Int, iterate: (MyRecord) => Unit): Unit = {
+  def importCollection(syncdConfig: SyncdConfig, context: ImportContext, iterate: (MyRecord) => Unit): Unit = {
     val config = context.config
 
     def readValue(key: String, rs: ResultSet): Any = {
@@ -41,20 +43,44 @@ object MyTransmission {
         }
     }
 
-    val columnNames  = Array(config.table_pkey) ++ config.include_fields.asScala.toArray
+    def processResultSet(rs: ResultSet): Object = {
+      var lastId: Object = null
+      while(rs.next()) {
+        val doc = new BasicBSONObject()
+        config.include_fields.forEach((key) => {
+          doc.put(key, readValue(key, rs))
+        })
+        lastId = rs.getObject(config.table_pkey)
+        iterate(MyRecord(readValue(config.table_pkey, rs), doc))
+      }
+      lastId
+    }
+
+    val columnNames = Array(config.table_pkey) ++ config.include_fields.asScala.toArray
+
+    val sqlPart1 = "SELECT " + columnNames.mkString(",") + " FROM " + config.table
+    val sqlPart2 = " WHERE " + config.table_pkey + ">?"
+    val sqlPart3 = " ORDER BY " + config.table_pkey + " ASC LIMIT " + syncdConfig.fetchSize
 
     Using.resource(MyClientUtils.createClient(config.server)) { conn => {
+      var lastId: Object = null
       Using.resource(conn.createStatement()) { stmt => {
-        Using.resource(stmt.executeQuery("SELECT " + columnNames.mkString(",") + " FROM " + config.table)) { rs => {
-          while(rs.next()) {
-            val doc = new BasicBSONObject()
-            config.include_fields.forEach((key) => {
-              doc.put(key, readValue(key, rs))
-            })
-            iterate(MyRecord(readValue(config.table_pkey, rs), doc))
-          }
+        Using.resource(stmt.executeQuery(sqlPart1 + sqlPart3)) { rs => {
+          lastId = processResultSet(rs)
         }}
       }}
+      if(lastId != null) {
+        Using.resource(conn.prepareStatement(sqlPart1 + sqlPart2 + sqlPart3)) { stmt => {
+          var inProgress: Boolean = true
+          while(inProgress) {
+            stmt.setObject(1, lastId)
+            Using.resource(stmt.executeQuery()) { rs => {
+              lastId = processResultSet(rs)
+            }}
+            inProgress = lastId != null
+          }
+        }}
+      }
     }}
   }
 

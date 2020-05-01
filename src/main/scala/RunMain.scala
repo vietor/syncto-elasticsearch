@@ -6,18 +6,22 @@ object RunMain {
   case class ConfigFile(
     port: Int,
     data: String,
+    fetch_size: Int = 0,
     batch_size_mb: Int = 0,
     batch_queue_size: Int = 0,
     interval_oplog_ms: Int = 0,
     interval_retry_ms: Int = 0
   )
 
-  val defaultSyncdConfig = SyncdConfig(
+  private val defaultSyncdConfig = SyncdConfig(
+    fetchSize = 1000,
     batchSizeMB = 10,
     batchQueueSize = 1000,
     intervalOplogMS = 500,
     intervalRetryMS = 1000
   )
+
+  private def fixValue(value: Int, defaultValue: Int): Int = if(value > 0) value else defaultValue
 
   def main(args: Array[String]): Unit = {
     val log4jFilePath = SomeUtil.tryFindFile(Array("", "config/"), "log4j2.xml")
@@ -30,10 +34,11 @@ object RunMain {
 
     val config = JsonUtil.readValue(configText, classOf[ConfigFile])
     var restService = new RestManager(config.port, SyncdConfig(
-      batchSizeMB = if (config.batch_size_mb > 0) config.batch_size_mb else defaultSyncdConfig.batchSizeMB,
-      batchQueueSize = if (config.batch_queue_size > 0) config.batch_queue_size else defaultSyncdConfig.batchQueueSize,
-      intervalOplogMS = if (config.interval_oplog_ms > 0) config.interval_oplog_ms else defaultSyncdConfig.intervalOplogMS,
-      intervalRetryMS = if (config.interval_retry_ms > 0) config.interval_retry_ms else defaultSyncdConfig.intervalRetryMS,
+      fetchSize = fixValue(config.fetch_size, defaultSyncdConfig.fetchSize),
+      batchSizeMB = fixValue (config.batch_size_mb, defaultSyncdConfig.batchSizeMB),
+      batchQueueSize = fixValue(config.batch_queue_size, defaultSyncdConfig.batchQueueSize),
+      intervalOplogMS = fixValue(config.interval_oplog_ms, defaultSyncdConfig.intervalOplogMS),
+      intervalRetryMS = fixValue(config.interval_retry_ms, defaultSyncdConfig.intervalRetryMS)
     ), KtVtStore.openOrCreate({
       if(config.data == null || config.data.isEmpty())
         "data/"
