@@ -14,7 +14,7 @@ object RunMain {
   )
 
   private val defaultSyncdConfig = SyncdConfig(
-    fetchSize = 1000,
+    fetchSize = 3000,
     batchSizeMB = 10,
     batchQueueSize = 1000,
     intervalOplogMS = 500,
