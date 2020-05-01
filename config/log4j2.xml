@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="warn">
     <Properties>
-        <Property name="logDir">./logs</Property>
+        <Property name="LOG_HOME">./logs</Property>
+        <Property name="FILE_NAME">syncto-elasticsearch</Property>
     </Properties>
 
     <Appenders>
-        <RollingFile name="fileLogger" fileName="${logDir}/mongodb-sync.log" filePattern="${logDir}/mongodb-sync-%d{yyyyMMddHHmmss}.log">
+        <RollingFile name="fileLogger" fileName="${LOG_HOME}/${FILE_NAME}.log" filePattern="${LOG_HOME}/${FILE_NAME}-%d{yyyyMMddHHmmss}.log">
             <PatternLayout>
                 <pattern>%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n</pattern>
             </PatternLayout>

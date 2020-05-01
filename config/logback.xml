@@ -1,0 +1,62 @@
+<configuration>
+
+    <property name="PATTERN" value="%d{HH:mm:ss.SSS} [%level] [%thread] [%logger{0}:%L] - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <property name="LOG_HOME" value="./logs"/>
+    <property name="FILE_NAME" value="syncto-elasticsearch"/>
+
+    <appender name="FILE-SYNC" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${FILE_NAME}.log</file>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/${FILE_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE-SYNC"/>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+
+    <logger name="org.springframework.web" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="org.apache.http" level="WARN" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="org.eclipse.jetty" level="WARN" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="corg.elasticsearch" level="ERROR" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="org.mongodb.driver" level="ERROR" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="com.alibaba.otter.canal.parse.driver" level="ERROR" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
