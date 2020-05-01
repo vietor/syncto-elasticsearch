@@ -45,7 +45,7 @@ WORK_CLASSPATH="$WORK_HOME/lib/*"
 
 cd $WORK_HOME
 if ! echo $* | grep -E '(^-d |-d$| -d |--daemonize$|--daemonize )' > /dev/null; then
-    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" MongodbSync
+    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" RunMain
 else
-    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" MongodbSync 1>/dev/null 2>&1 &
+    exec $JAVA_COMMAND $JAVA_OPTS -cp "$WORK_CLASSPATH" RunMain 1>/dev/null 2>&1 &
 fi
