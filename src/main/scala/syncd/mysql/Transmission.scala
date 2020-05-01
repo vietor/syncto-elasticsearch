@@ -96,7 +96,7 @@ object MyTransmission {
             case EventType.DELETE => MyConstants.OP_DELETE
             case _ => MyConstants.OP_IGNORE
           }, new ArrayList[MyRecord]() {
-            for (rowData <- rowChange.getRowDatasList().asScala) {
+            rowChange.getRowDatasList().forEach(rowData => {
               var columnsList = {
                 if (eventType == EventType.DELETE) {
                   rowData.getBeforeColumnsList()
@@ -107,17 +107,17 @@ object MyTransmission {
 
               var id: Any = null
               val doc = new BasicBSONObject()
-              for(column <- columnsList.asScala) {
+              columnsList.forEach(column => {
                 val name = column.getName()
                 if (config.table_pkey == name) {
                   id = readValue(name, column)
                 } else if(config.include_fields contains name) {
                   doc.put(name, readValue(name, column))
                 }
-              }
+              })
 
               add(MyRecord(id, doc))
-            }
+            })
           })
         }
       }

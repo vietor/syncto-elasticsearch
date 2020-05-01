@@ -9,30 +9,34 @@ import com.alibaba.otter.canal.parse.inbound.mysql.dbsync._;
 import com.alibaba.otter.canal.parse.inbound.mysql.MysqlConnection;
 
 class CanalProvider(config: MyConfig) {
-  var mainConnection: MysqlConnection = null
+  var dumpConnection: MysqlConnection = null
   var metaConnection: MysqlConnection = null
   var tableMetaCache: TableMetaCache = null
   var binlogParser: LogEventConvert = null
 
-  private def active(): Unit = {
-    if(mainConnection == null) {
-      mainConnection = new MysqlConnection(new InetSocketAddress(config.server.host, config.server.port), config.server.user, config.server.password);
-      mainConnection.connect()
-    }
-    if(!mainConnection.isConnected()) {
-      mainConnection.reconnect()
-    }
-
+  private def preMeta(): Unit = {
     if(metaConnection == null) {
-      metaConnection = mainConnection.fork()
+      metaConnection = new MysqlConnection(
+        new InetSocketAddress(config.server.host, config.server.port),
+        config.server.user,
+        config.server.password
+      )
       metaConnection.connect()
-    }
-    if(!metaConnection.isConnected()) {
+    } else if(!metaConnection.isConnected()) {
       metaConnection.reconnect()
     }
 
     if(tableMetaCache == null) {
       tableMetaCache = new TableMetaCache(metaConnection, null);
+    }
+  }
+
+  private def preDump(): Unit =  {
+    if(dumpConnection == null) {
+      dumpConnection = metaConnection.fork()
+      dumpConnection.connect()
+    } else {
+      dumpConnection.reconnect()
     }
 
     if(binlogParser == null) {
@@ -47,21 +51,33 @@ class CanalProvider(config: MyConfig) {
     if(binlogParser != null) {
       binlogParser.stop()
     }
-    if(metaConnection != null) {
-      metaConnection.disconnect()
+    if(dumpConnection != null) {
+      dumpConnection.disconnect()
     }
     if (tableMetaCache != null) {
       tableMetaCache.clearTableMeta();
     }
-    if(mainConnection != null) {
-      mainConnection.disconnect()
+    if(metaConnection != null) {
+      metaConnection.disconnect()
     }
   }
 
-  def dump(start: MyTimestamp, iterate: (MyTimestamp,RowChange) => Boolean): Unit = {
-    active()
+  private def getTimestamp(): MyTimestamp = {
+    val columnValues = metaConnection.query("show master status")
+      .getFieldValues()
+    MyTimestamp(columnValues.get(0), columnValues.get(1).toLong)
+  }
 
-    mainConnection.dump(start.file, start.position, new SinkFunction[LogEvent]() {
+  private def canDump(start: MyTimestamp): Boolean = {
+    preMeta()
+
+    getTimestamp() != start
+  }
+
+  private def runDump(start: MyTimestamp, iterate: (MyTimestamp,RowChange) => Boolean): Unit = {
+    preDump()
+
+    dumpConnection.dump(start.file, start.position, new SinkFunction[LogEvent]() {
       def sink(event: LogEvent): Boolean = {
         val timestamp = MyTimestamp(
           event.getHeader().getLogFileName(),
@@ -81,5 +97,11 @@ class CanalProvider(config: MyConfig) {
         iterate(timestamp, rowChange)
       }
     })
+  }
+
+  def dump(start: MyTimestamp, iterate: (MyTimestamp,RowChange) => Boolean): Unit = {
+    if(canDump(start)) {
+      runDump(start, iterate)
+    }
   }
 }

@@ -37,7 +37,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
     val context = MyTransmission.createOplogContext(cluster, myConfig)
 
     override def run(): Unit = {
-      var opTimestamp = MyTimestamp("binlog.000004", 4) //readOplogTimestamp(cluster.getServerNode().timestamp)
+      var opTimestamp = readOplogTimestamp(cluster.getServerNode().timestamp)
 
       try {
         while(true) {
@@ -160,6 +160,60 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
         }
       }
 
+      if(getStatus() == Status.RUNNING) {
+        bulkProcessor.resetSync()
+
+        var opTimestamp: MyTimestamp = null
+        while(true) {
+          try {
+            val opRecord = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
+            if(opRecord != null) {
+              opTimestamp = opRecord.ts
+
+              opRecord.op match {
+                case MyConstants.OP_INSERT => {
+                  opRecord.docs.forEach(record => {
+                    if(record.id == null)
+                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " INSERT lost pkey")
+                    else
+                      bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
+                  })
+                }
+                case MyConstants.OP_UPDATE => {
+                  opRecord.docs.forEach(record => {
+                    if(record.id == null)
+                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " UPDATE lost pkey")
+                    else
+                      bulkProcessor.update(record.id.toString, JsonUtil.writeValueAsString(record.doc))
+                  })
+                }
+                case MyConstants.OP_DELETE => {
+                  opRecord.docs.forEach(record => {
+                    if(record.id == null)
+                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " DELETE lost pkey")
+                    else
+                      bulkProcessor.delete(record.id.toString)
+                  })
+                }
+                case _ => {}
+              }
+            }
+            if(opRecord == null)
+              bulkProcessor.flush()
+
+            if(bulkProcessor.detectSync()) {
+              if(opTimestamp != null) {
+                storeOplogTimestamp(opTimestamp)
+              }
+            }
+          } catch {
+            case e: Throwable => {
+              if(!MyClientUtils.isInterrupted(e))
+                logger.error("[" + syncKey + "] Poll MySQL oplog to Elasticsearch", e)
+            }
+          }
+        }
+      }
 
       if(bulkProcessor != null)
         bulkProcessor.close()
