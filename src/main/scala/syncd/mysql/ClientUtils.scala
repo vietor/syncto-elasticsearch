@@ -1,6 +1,7 @@
 package syncd.mysql
 
 import java.sql.{DriverManager, Connection}
+import com.mysql.cj.jdbc.exceptions.CommunicationsException
 
 object MyClientUtils {
 
@@ -10,7 +11,7 @@ object MyClientUtils {
   }
 
   def isRetrySafety(e: Throwable): Boolean = {
-    false
+    e.isInstanceOf[CommunicationsException]
   }
 
   def isInterrupted(e: Throwable): Boolean = {
