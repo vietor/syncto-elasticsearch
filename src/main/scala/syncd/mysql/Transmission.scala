@@ -33,14 +33,12 @@ object MyTransmission {
     val config = context.config
 
     def readValue(key: String, rs: ResultSet): Any = {
-      if(rs.wasNull())
-        null
-      else
-        context.columnTypes.get(key) match {
-          case n if n == MyConstants.TYPE_LONG => rs.getLong(key)
-          case n if n == MyConstants.TYPE_FLOAT => rs.getDouble(key)
-          case _ => rs.getString(key)
-        }
+      val value = context.columnTypes.get(key) match {
+        case n if n == MyConstants.TYPE_LONG => rs.getLong(key)
+        case n if n == MyConstants.TYPE_FLOAT => rs.getDouble(key)
+        case _ => rs.getString(key)
+      }
+      if(rs.wasNull()) null else value
     }
 
     def processResultSet(rs: ResultSet): Object = {
