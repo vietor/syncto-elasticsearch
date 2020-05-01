@@ -36,35 +36,40 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
     val context = MgTransmission.createOplogContext(cluster, shard, mgConfig)
 
     override def run(): Unit = {
+      var interrupted = false
       var opTimestamp = readOplogTimestamp(shard.name, shard.timestamp)
 
-      try {
-        while(true) {
-          var sleepMS = syncdConfig.intervalOplogMS
+      logger.debug("[" + syncKey +  "] start oplog thread on " + shard.name)
+
+      while(!interrupted) {
+        var sleepMS = syncdConfig.intervalOplogMS
+        try {
+          MgTransmission.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
+            opTimestamp = record.ts
+            oplogRecordQueue.put(record)
+          })
+        } catch {
+          case e: Throwable => {
+            if(MgClientUtils.isInterrupted(e))
+              interrupted = true
+            else if(MgClientUtils.isRetrySafety(e))
+              sleepMS = syncdConfig.intervalRetryMS
+            else
+              logger.error("[" + syncKey + "] oplog fetch", e)
+          }
+        }
+        if(!interrupted) {
           try {
-            MgTransmission.syncCollectionOplog(context, opTimestamp, (record: MgOpRecord) => {
-              opTimestamp = record.ts
-              oplogRecordQueue.put(record)
-            })
+            Thread.sleep(sleepMS)
           } catch {
-            case e: Throwable => {
-              if(!MgClientUtils.isRetrySafety(e)) {
-                if(MgClientUtils.isInterrupted(e))
-                  throw e
-                logger.error("[" + syncKey + "] Fetch oplog", e)
-              }
-              else
-                sleepMS = syncdConfig.intervalRetryMS
+            case _: Throwable => {
+              interrupted = true
             }
           }
-          Thread.sleep(sleepMS)
-        }
-      } catch {
-        case e: Throwable => {
-          if(!MgClientUtils.isInterrupted(e))
-            logger.error("[" + syncKey + "] Escape Oplog Thread", e)
         }
       }
+
+      logger.debug("[" + syncKey +  "] stop oplog thread on " + shard.name)
     }
   }
 
@@ -81,26 +86,24 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
       var bulkProcessor: EsBulkProcessor = null
       val shardStatus = new HashMap[String, ShardStatus]
 
+      logger.debug("[" + syncKey + "] start main thread")
+
       try {
         setStatusStep("STARTUP")
         setStatus(Status.STARTING)
 
-        var waitingStep = true
-        while(waitingStep) {
+        while(mgCluster == null || esCluster == null) {
           try {
             if(mgCluster == null)
               mgCluster = new MgClusterNode(mgConfig.cluster)
             if(esCluster == null)
               esCluster = new EsClusterNode(esConfig.cluster)
-            waitingStep = false
-          }
-          catch {
+          } catch {
             case e: Throwable => {
-              if(!MgClientUtils.isRetrySafety(e)) {
-                setStatus(Status.START_FAILED)
+              if(!MgClientUtils.isRetrySafety(e))
                 throw e
-              }
-              Thread.sleep(syncdConfig.intervalRetryMS)
+              else
+                Thread.sleep(syncdConfig.intervalRetryMS)
             }
           }
         }
@@ -117,7 +120,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
           bytesOnMB = syncdConfig.batchSizeMB,
           flushIntervalOnMillis = syncdConfig.intervalOplogMS,
           itemsErrorWatcher = (e: Throwable) => {
-            logger.error("[" + syncKey + "] Bulk items ", e)
+            logger.error("[" + syncKey + "] Bulk items", e)
           },
           globalErrorWatcher = (e: Throwable) => {
             logger.error("[" + syncKey + "] Bulk processor", e)
@@ -165,14 +168,15 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
         case e: Throwable => {
           setStatus(Status.START_FAILED)
           if(!MgClientUtils.isInterrupted(e))
-            logger.error("[" + syncKey + "] Mongo to ElasticSearch Starting", e)
+            logger.error("[" + syncKey + "] import process", e)
         }
       }
 
       if(getStatus() == Status.RUNNING) {
         bulkProcessor.resetSync()
 
-        while(true) {
+        var interrupted = false
+        while(!interrupted) {
           try {
             val record = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
             if(record != null) {
@@ -206,8 +210,10 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
             }
           } catch {
             case e: Throwable => {
-              if(!MgClientUtils.isInterrupted(e))
-                logger.error("[" + syncKey + "] Poll Mongodb oplog to Elasticsearch", e)
+              if(MgClientUtils.isInterrupted(e))
+                interrupted = true
+              else
+                logger.error("[" + syncKey + "] oplog process", e)
             }
           }
         }
@@ -216,7 +222,7 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
       if(bulkProcessor != null)
         bulkProcessor.close()
 
-      oplogThreads.forEach(thread => thread.interrupt())
+      logger.debug("[" + syncKey + "] stop main thread")
     }
   }
 
@@ -233,13 +239,13 @@ class MongodbSync(syncdConfig: SyncdConfig, syncKey: String,  mgConfig: MgConfig
 
   override def stop(): Unit = {
     try {
-      if(mainThread != null) {
-        mainThread.interrupt()
-        mainThread = null
-      }
       if(oplogThreads.size() > 0) {
         oplogThreads.forEach(thread =>thread.interrupt())
         oplogThreads.clear()
+      }
+      if(mainThread != null) {
+        mainThread.interrupt()
+        mainThread = null
       }
     }
     finally {

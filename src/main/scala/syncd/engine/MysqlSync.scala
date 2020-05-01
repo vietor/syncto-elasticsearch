@@ -37,37 +37,41 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
     val context = MyTransmission.createOplogContext(cluster, myConfig)
 
     override def run(): Unit = {
+      var interrupted = false
       var opTimestamp = readOplogTimestamp(cluster.getServerNode().timestamp)
 
-      try {
-        while(true) {
-          var sleepMS = syncdConfig.intervalOplogMS
+      logger.debug("[" + syncKey +  "] start oplog thread")
+
+      while(!interrupted) {
+        var sleepMS = syncdConfig.intervalOplogMS
+        try {
+          MyTransmission.syncCollectionOplog(context, opTimestamp, (record: MyOpRecord) => {
+            opTimestamp = record.ts
+            oplogRecordQueue.put(record)
+          })
+        } catch {
+          case e: Throwable => {
+            if(MyClientUtils.isInterrupted(e))
+              interrupted = true
+            else if(MyClientUtils.isRetrySafety(e))
+              sleepMS = syncdConfig.intervalRetryMS
+            else
+              logger.error("[" + syncKey + "] oplog fetch", e)
+          }
+        }
+        if(!interrupted) {
           try {
-            MyTransmission.syncCollectionOplog(context, opTimestamp, (record: MyOpRecord) => {
-              opTimestamp = record.ts
-              oplogRecordQueue.put(record)
-            })
+            Thread.sleep(sleepMS)
           } catch {
-            case e: Throwable => {
-              if(!MyClientUtils.isRetrySafety(e)) {
-                if(MyClientUtils.isInterrupted(e))
-                  throw e
-                logger.error("[" + syncKey + "] Fetch oplog", e)
-              }
-              else
-                sleepMS = syncdConfig.intervalRetryMS
+            case _: Throwable => {
+              interrupted = true
             }
           }
-          Thread.sleep(sleepMS)
-        }
-      } catch {
-        case e: Throwable => {
-          if(!MyClientUtils.isInterrupted(e))
-            logger.error("[" + syncKey + "] Escape Oplog Thread", e)
         }
       }
 
       MyTransmission.releaseOplogContext(context)
+      logger.debug("[" + syncKey +  "] stop oplog thread")
     }
   }
 
@@ -77,26 +81,25 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
       var esCluster: EsClusterNode = null
       var bulkProcessor: EsBulkProcessor = null
 
+      logger.debug("[" + syncKey + "] start main thread")
+
       try {
         setStatusStep("STARTUP")
         setStatus(Status.STARTING)
 
-        var waitingStep = true
-        while(waitingStep) {
+        while(myCluster == null || esCluster == null) {
           try {
             if(myCluster == null)
               myCluster = new MyClusterNode(myConfig)
             if(esCluster == null)
               esCluster = new EsClusterNode(esConfig.cluster)
-            waitingStep = false
           }
           catch {
             case e: Throwable => {
-              if(!MyClientUtils.isRetrySafety(e)) {
-                setStatus(Status.START_FAILED)
+              if(!MyClientUtils.isRetrySafety(e))
                 throw e
-              }
-              Thread.sleep(syncdConfig.intervalRetryMS)
+              else
+                Thread.sleep(syncdConfig.intervalRetryMS)
             }
           }
         }
@@ -113,7 +116,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
           bytesOnMB = syncdConfig.batchSizeMB,
           flushIntervalOnMillis = syncdConfig.intervalOplogMS,
           itemsErrorWatcher = (e: Throwable) => {
-            logger.error("[" + syncKey + "] Bulk items ", e)
+            logger.error("[" + syncKey + "] Bulk items", e)
           },
           globalErrorWatcher = (e: Throwable) => {
             logger.error("[" + syncKey + "] Bulk processor", e)
@@ -156,15 +159,16 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
         case e: Throwable => {
           setStatus(Status.START_FAILED)
           if(!MyClientUtils.isInterrupted(e))
-            logger.error("[" + syncKey + "] MySQL to ElasticSearch Starting", e)
+            logger.error("[" + syncKey + "] import process", e)
         }
       }
 
       if(getStatus() == Status.RUNNING) {
         bulkProcessor.resetSync()
 
+        var interrupted = false
         var opTimestamp: MyTimestamp = null
-        while(true) {
+        while(!interrupted) {
           try {
             val opRecord = oplogRecordQueue.poll(syncdConfig.intervalOplogMS, TimeUnit.MILLISECONDS)
             if(opRecord != null) {
@@ -174,7 +178,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
                 case MyConstants.OP_INSERT => {
                   opRecord.docs.forEach(record => {
                     if(record.id == null)
-                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " INSERT lost pkey")
+                      logger.warn("[" + syncKey + "] INSERT lost pkey on " + opTimestamp)
                     else
                       bulkProcessor.index(record.id.toString, JsonUtil.writeValueAsString(record.doc))
                   })
@@ -182,7 +186,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
                 case MyConstants.OP_UPDATE => {
                   opRecord.docs.forEach(record => {
                     if(record.id == null)
-                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " UPDATE lost pkey")
+                      logger.warn("[" + syncKey + "] UPDATE lost pkey on  " + opTimestamp)
                     else
                       bulkProcessor.update(record.id.toString, JsonUtil.writeValueAsString(record.doc))
                   })
@@ -190,7 +194,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
                 case MyConstants.OP_DELETE => {
                   opRecord.docs.forEach(record => {
                     if(record.id == null)
-                      logger.warn("[" + syncKey + "] MySQL oplog " + opTimestamp + " DELETE lost pkey")
+                      logger.warn("[" + syncKey + "] DELETE lost pkey on  " + opTimestamp)
                     else
                       bulkProcessor.delete(record.id.toString)
                   })
@@ -208,8 +212,10 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
             }
           } catch {
             case e: Throwable => {
-              if(!MyClientUtils.isInterrupted(e))
-                logger.error("[" + syncKey + "] Poll MySQL oplog to Elasticsearch", e)
+              if(MyClientUtils.isInterrupted(e))
+                interrupted = true
+              else
+                logger.error("[" + syncKey + "] oplog process", e)
             }
           }
         }
@@ -218,7 +224,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
       if(bulkProcessor != null)
         bulkProcessor.close()
 
-      oplogThreads.forEach(thread => thread.interrupt())
+      logger.debug("[" + syncKey + "] stop main thread")
     }
   }
 
@@ -235,15 +241,13 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
 
   override def stop(): Unit = {
     try {
+      if(oplogThreads.size() > 0) {
+        oplogThreads.forEach(thread => thread.interrupt())
+        oplogThreads.clear()
+      }
       if(mainThread != null) {
         mainThread.interrupt()
         mainThread = null
-      }
-      if(oplogThreads.size() > 0) {
-        oplogThreads.forEach(thread =>
-          thread.interrupt()
-        )
-        oplogThreads.clear()
       }
     }
     finally {
