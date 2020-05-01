@@ -16,6 +16,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import syncd.utils._
+import syncd.mysql._
 import syncd.mongodb._
 import syncd.elasticsearch._
 
@@ -43,13 +44,18 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
       val fields = locales.getAll(key)
       if(fields != null) {
         try {
-          val body =  JsonUtil.readTree(fields.get("metadata"))
-          val sync = new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
-          put(key, Worker(
-            key,
-            fields.get("metadata"),
-            sync
-          ))
+          val meta = fields.get("metadata")
+          val body =  JsonUtil.readTree(meta)
+
+          val ktvtStore = ktvtDB.getCollection(key)
+          val esConfig = JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig])
+          val sync = {
+            if(body.has("mysql"))
+              new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore)
+            else
+              new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore)
+          }
+          put(key, Worker(key, meta, sync))
         } catch {
           case e: Throwable => {
             logger.error("Sync " + key, e)
@@ -172,7 +178,7 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
               if(workers.containsKey(key))
                 throw new IllegalStateException("Worker already exists")
 
-              val metadata = {
+              val meta = {
                 var line: String = null
                 val sb = new StringBuffer()
                 val reader = request.getReader()
@@ -185,23 +191,27 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
                 sb.toString()
               }
 
-              val body = JsonUtil.readTree(metadata)
-              if(!body.has("mongodb"))
-                throw new IllegalStateException("Metadata no field: mongodb")
+              val body = JsonUtil.readTree(meta)
               if(!body.has("elasticsearch"))
                 throw new IllegalStateException("Metadata no field: elasticsearch")
+              if(!body.has("mysql") && !body.has("mongodb"))
+                throw new IllegalStateException("Metadata no field: mysql or mongodb")
 
-              val sync = new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig]), ktvtDB.getCollection(key))
+              val ktvtStore = ktvtDB.getCollection(key)
+              val esConfig = JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig])
+              var sync = {
+                if(body.has("mysql"))
+                  new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore)
+                else
+                  new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore)
+              }
+
               locales.putAll(key, new HashMap[String, String]() {
-                put("metadata", metadata)
+                put("metadata", meta)
                 put("timestamp", SomeUtil.getTimestamp().toString)
               })
               lock.synchronized {
-                workers.put(key, Worker(
-                  key,
-                  metadata,
-                  sync
-                ))
+                workers.put(key, Worker(key, meta, sync))
                 sync.start()
               }
               logger.info("Create worker {}", key)
