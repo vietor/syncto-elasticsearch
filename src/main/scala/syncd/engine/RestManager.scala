@@ -200,13 +200,20 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
               if(!body.has("mysql") && !body.has("mongodb"))
                 throw new IllegalStateException("Metadata no field: mysql or mongodb")
 
-              val ktvtStore = ktvtDB.getCollection(key)
               val esConfig = JsonUtil.convertValue(body.get("elasticsearch"), classOf[EsConfig])
+              EsValidator.validate(esConfig)
+
+              val ktvtStore = ktvtDB.getCollection(key)
               var (source, sync) = {
-                if(body.has("mysql"))
-                  ("mysql", new MysqlSync(syncdConfig, key, JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig]), esConfig, ktvtStore))
-                else
-                  ("mongodb", new MongodbSync(syncdConfig, key, JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig]), esConfig, ktvtStore))
+                if(body.has("mysql")) {
+                  val myConfig = JsonUtil.convertValue(body.get("mysql"), classOf[MyConfig])
+                  MyValidator.validate(myConfig)
+                  ("mysql", new MysqlSync(syncdConfig, key, myConfig, esConfig, ktvtStore))
+                } else {
+                  val mgConfig = JsonUtil.convertValue(body.get("mongodb"), classOf[MgConfig])
+                  MgValidator.validate(mgConfig)
+                  ("mongodb", new MongodbSync(syncdConfig, key, mgConfig, esConfig, ktvtStore))
+                }
               }
 
               locales.putAll(key, new HashMap[String, String]() {
