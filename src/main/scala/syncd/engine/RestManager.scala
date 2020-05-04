@@ -102,6 +102,7 @@ class RestManager(port: Int, syncdConfig: SyncdConfig, ktvtDB: KtVtDatabase) {
                 }
               })
               put("config", new HashMap[String, Int]() {
+                put("fetch_size", syncdConfig.fetchSize)
                 put("batch_size_mb", syncdConfig.batchSizeMB)
                 put("batch_queue_size", syncdConfig.batchQueueSize)
                 put("interval_oplog_ms", syncdConfig.intervalOplogMS)
