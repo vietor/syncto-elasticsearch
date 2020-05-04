@@ -127,6 +127,7 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
 
         if(ktvtStore.get("import", "completed", "no") != "ok") {
           setStatusStep("IMPORT")
+          logger.debug("[" + syncKey + "] start import exists records")
 
           var count:Long = 0
           val start_ts = SomeUtil.getTimestamp()
@@ -138,13 +139,15 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
           })
           bulkProcessor.flush()
           val completed_ts = SomeUtil.getTimestamp
+          val duration_ts = completed_ts - start_ts
           ktvtStore.putAll("import", new HashMap[String, String]() {
             put("count", count.toString)
-            put("duration", (completed_ts - start_ts).toString)
+            put("duration", duration_ts.toString)
             put("completed", "ok")
             put("completed_ts", completed_ts.toString)
           })
           storeOplogTimestamp(myCluster.getServerNode().timestamp)
+          logger.debug("[" + syncKey + "] completed import exists records: count={}, duration={}", count, duration_ts)
         }
 
         setStatusStep("OPLOG")
@@ -152,7 +155,6 @@ class MysqlSync(syncdConfig: SyncdConfig, syncKey: String,  myConfig: MyConfig, 
         thread.setDaemon(true)
         oplogThreads.add(thread)
         oplogThreads.forEach(thread =>thread.start())
-
       } catch {
         case e: Throwable => {
           setStatus(Status.START_FAILED)
