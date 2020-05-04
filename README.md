@@ -47,7 +47,6 @@ A tool for **MySQL**,**MongoDB** synchronize to **ElasticSearch**.
             }
         },
         "include_fields": [
-            "_id",
             "nickname",
             "create_date"
         ]
