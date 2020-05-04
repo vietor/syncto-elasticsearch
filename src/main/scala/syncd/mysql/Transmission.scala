@@ -9,8 +9,10 @@ import java.sql.{Connection, ResultSet}
 import com.alibaba.otter.canal.protocol.CanalEntry._
 
 import syncd.engine.SyncdConfig
+import syncd.utils.{Validate}
 
 object MyTransmission {
+
   case class ImportContext(
     config: MyConfig,
     columnTypes: HashMap[String, Int]
@@ -31,6 +33,19 @@ object MyTransmission {
 
   def importCollection(syncdConfig: SyncdConfig, context: ImportContext, iterate: (MyRecord) => Unit): Unit = {
     val config = context.config
+    val (queryFields, valueFields) = {
+      if(Validate.isNullOrEmpty(config.include_fields)) {
+        (
+          Array("*"),
+          new ArrayList[String](context.columnTypes.keySet())
+        )
+      } else {
+        (
+          Array(config.table_pkey) ++ config.include_fields.asScala.toArray,
+          config.include_fields
+        )
+      }
+    }
 
     def readValue(key: String, rs: ResultSet): Any = {
       val value = context.columnTypes.get(key) match {
@@ -44,19 +59,24 @@ object MyTransmission {
     def processResultSet(rs: ResultSet): Object = {
       var lastId: Object = null
       while(rs.next()) {
+        lastId = rs.getObject(config.table_pkey)
+
         val doc = new BasicBSONObject()
-        config.include_fields.forEach((key) => {
+        valueFields.forEach((key) => {
           doc.put(key, readValue(key, rs))
         })
-        lastId = rs.getObject(config.table_pkey)
-        iterate(MyRecord(readValue(config.table_pkey, rs), doc))
+        var idValue: Any = null
+        if(!doc.containsField(config.table_pkey)) {
+          idValue = readValue(config.table_pkey, rs)
+        }  else {
+          idValue = doc.removeField(config.table_pkey)
+        }
+        iterate(MyRecord(idValue, doc))
       }
       lastId
     }
 
-    val columnNames = Array(config.table_pkey) ++ config.include_fields.asScala.toArray
-
-    val sqlPart1 = "SELECT " + columnNames.mkString(",") + " FROM " + config.table
+    val sqlPart1 = "SELECT " + queryFields.mkString(",") + " FROM " + config.table
     val sqlPart2 = " WHERE " + config.table_pkey + ">?"
     val sqlPart3 = " ORDER BY " + config.table_pkey + " ASC LIMIT " + syncdConfig.fetchSize
 
@@ -135,7 +155,7 @@ object MyTransmission {
                 val name = column.getName()
                 if (config.table_pkey == name) {
                   id = readValue(name, column)
-                } else if(config.include_fields contains name) {
+                } else if(context.columnTypes.containsKey(name)) {
                   doc.put(name, readValue(name, column))
                 }
               })

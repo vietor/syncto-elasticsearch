@@ -33,8 +33,9 @@ object MgTransmission {
           }
         }
       }
-      if(resp.containsField("_id"))
+      if(resp.containsField("_id")) {
         resp.removeField("_id")
+      }
       resp
     }
 

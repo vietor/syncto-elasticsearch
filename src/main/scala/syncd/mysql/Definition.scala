@@ -75,8 +75,5 @@ object MyValidator {
 
     if(Validate.isNullOrBlank(config.table_pkey))
       throw new IllegalStateException(PREFIX + "table_pkey")
-
-    if(Validate.isNullOrEmpty(config.include_fields))
-      throw new IllegalStateException(PREFIX + "include_fields")
   }
 }

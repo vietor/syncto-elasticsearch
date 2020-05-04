@@ -6,21 +6,29 @@ import scala.jdk.CollectionConverters._
 
 import java.sql.{Connection}
 
+import syncd.utils.{Validate}
+
 class MyClusterNode(config: MyConfig) {
 
   private val keyLong = Array("tinyint", "smallint", "int", "bigint")
   private val keyFloat = Array("float", "decimal")
   private val keyText = Array("varchar", "text")
   private val keyDate = Array("date", "datetime", "timestamp")
-  private val columnNames = Array(config.table_pkey) ++ config.include_fields.asScala.toArray
 
   private def getColumnTypes(conn: Connection): HashMap[String, Int] = {
+    val columnNames = {
+      if(Validate.isNullOrEmpty(config.include_fields))
+        Array(config.table_pkey)
+      else
+        Array(config.table_pkey) ++ config.include_fields.asScala.toArray
+    }
+
     Using.resource(conn.createStatement()) { stmt => {
       Using.resource(stmt.executeQuery("show columns from " + config.table)) { rs => {
         val types = new HashMap[String, Int]()
         while(rs.next()) {
           val name = rs.getString("Field")
-          if(columnNames.contains(name)) {
+          if(columnNames.length == 1 || columnNames.contains(name)) {
             val sType = {
               val text = rs.getString("Type")
               val pos = text.indexOf("(")
