@@ -111,36 +111,34 @@ object MgTransmission {
 
   case class ImportContext(
     config: MgConfig,
-    client: MongoClient,
     queryFields: BasicDBObject,
-    querySort: BasicDBObject
+    querySort: BasicDBObject,
+    masterCollection: MongoCollection[BasicDBObject]
   )
 
   case class OplogContext(
     config: MgConfig,
     shard: MgShardNode,
-    client: MongoClient,
     fetchFields: BasicDBObject,
-    masterCollection: MongoCollection[BasicDBObject]
+    masterCollection: MongoCollection[BasicDBObject],
+    oplogCollection: MongoCollection[BasicDBObject]
   )
 
   def createImportContext(cluster: MgClusterNode, config: MgConfig): ImportContext = {
     ImportContext(
       config,
-      cluster.getClient(),
       {
         if(config.include_fields == null || config.include_fields.size() < 1)
           new BasicDBObject()
         else {
           new BasicDBObject() {
             put("_id", 1: Integer)
-            config.include_fields.forEach(key =>
-              put(key, 1: Integer)
-            )
+            config.include_fields.forEach(key => put(key, 1: Integer))
           }
         }
       },
-      new BasicDBObject("_id", 1)
+      new BasicDBObject("_id", 1),
+      cluster.getClient().getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject]),
     )
   }
 
@@ -149,11 +147,9 @@ object MgTransmission {
 
     var lastId: Object = null
     var inProgress: Boolean = true
-    val collection = context.client.getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject])
-
     while(inProgress) {
       try {
-        Using.resource(collection.find({
+        Using.resource(context.masterCollection.find({
           if(lastId != null)
             new BasicDBObject("_id", new BasicDBObject("$gt", lastId))
           else
@@ -173,33 +169,29 @@ object MgTransmission {
         case e :Throwable => {
           if(!MgClientUtils.isRetrySafety(e))
             throw e
-          val delayMS = syncdConfig.intervalRetryMS
-          if(delayMS < 1)
-            inProgress = false
           else
-            Thread.sleep(delayMS)
+            Thread.sleep(syncdConfig.intervalRetryMS)
         }
       }
     }
   }
 
   def createOplogContext(cluster: MgClusterNode, shard: MgShardNode, config: MgConfig): OplogContext = {
+    val shardClient = MgClientUtils.createClient(shard.replicas, config.cluster.auth)
     OplogContext(
       config,
       shard,
-      MgClientUtils.createClient(shard.replicas, config.cluster.auth),
       {
         if(config.include_fields == null || config.include_fields.size() < 1)
           null
         else {
           new BasicDBObject() {
-            config.include_fields.forEach(k =>
-              append(k, 1)
-            )
+            config.include_fields.forEach(k => append(k, 1))
           }
         }
       },
       cluster.getClient().getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject]),
+      shardClient.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(shard.oplogName, classOf[BasicDBObject])
     )
   }
 
@@ -223,11 +215,9 @@ object MgTransmission {
       }
     }
 
-    val ns = config.db + "." + config.collection
-    val oplogCollection = context.client.getDatabase(MgConstants.LOCAL_DATABASE).getCollection(shard.oplogName, classOf[BasicDBObject])
-
-    Using.resource(oplogCollection.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
+    Using.resource(context.oplogCollection.find(new BasicDBObject("ts", new BasicDBObject("$gt", MgClientUtils.convertTimestamp(timestamp)))).cursorType(CursorType.TailableAwait).noCursorTimeout(true).oplogReplay(true).iterator()) {
       cursor => {
+        val ns = config.db + "." + config.collection
         while(cursor.hasNext()) {
           val row = cursor.next()
           val current = MgClientUtils.convertTimestamp(row.get("ts").asInstanceOf[BSONTimestamp])
