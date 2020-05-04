@@ -11,6 +11,7 @@ import com.mongodb._
 import com.mongodb.client.MongoCollection
 
 import syncd.engine.SyncdConfig
+import syncd.utils.{Validate}
 
 object MgTransmission {
 
@@ -21,7 +22,7 @@ object MgTransmission {
 
     def pick(o: DBObject, include_fields: ArrayList[String]): DBObject = {
       val resp = {
-        if(include_fields == null || include_fields.size() < 1)
+        if(Validate.isNullOrEmpty(include_fields))
           o
         else {
           new BasicDBObject() {
@@ -38,7 +39,7 @@ object MgTransmission {
     }
 
     def includes(o: DBObject, include_fields: ArrayList[String]): Boolean = {
-      if(include_fields == null || include_fields.size() < 1)
+      if(Validate.isNullOrEmpty(include_fields))
         true
       else {
         o.keySet().asScala.exists(k => {
@@ -60,7 +61,7 @@ object MgTransmission {
       val exist_fields = new ArrayList[String]
       val resp = {
         new BasicDBObject() {
-          if(include_fields == null || include_fields.size() < 1) {
+          if(Validate.isNullOrEmpty(include_fields)) {
             for(k <- o.keySet().asScala) {
               if(k != "_id") {
                 val pos = k.indexOf(".")
@@ -128,14 +129,13 @@ object MgTransmission {
     ImportContext(
       config,
       {
-        if(config.include_fields == null || config.include_fields.size() < 1)
+        if(Validate.isNullOrEmpty(config.include_fields))
           new BasicDBObject()
-        else {
+        else
           new BasicDBObject() {
             put("_id", 1: Integer)
             config.include_fields.forEach(key => put(key, 1: Integer))
           }
-        }
       },
       new BasicDBObject("_id", 1),
       cluster.getClient().getDatabase(config.db).getCollection(config.collection, classOf[BasicDBObject]),
@@ -182,7 +182,7 @@ object MgTransmission {
       config,
       shard,
       {
-        if(config.include_fields == null || config.include_fields.size() < 1)
+        if(Validate.isNullOrEmpty(config.include_fields))
           null
         else {
           new BasicDBObject() {

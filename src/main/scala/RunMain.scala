@@ -40,7 +40,7 @@ object RunMain {
       intervalOplogMS = fixValue(config.interval_oplog_ms, defaultSyncdConfig.intervalOplogMS),
       intervalRetryMS = fixValue(config.interval_retry_ms, defaultSyncdConfig.intervalRetryMS)
     ), KtVtStore.openOrCreate({
-      if(config.data == null || config.data.isEmpty())
+      if(Validate.isNullOrBlank(config.data))
         "data/"
       else
         config.data
