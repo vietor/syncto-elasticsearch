@@ -24,9 +24,9 @@ object RunMain {
   private def fixValue(value: Int, defaultValue: Int): Int = if(value > 0) value else defaultValue
 
   def main(args: Array[String]): Unit = {
-    val log4jFilePath = SomeUtil.tryFindFile(Array("", "config/"), "log4j2.xml")
-    if(log4jFilePath != null)
-      System.setProperty("log4j.configurationFile", log4jFilePath);
+    val logbackFilePath = SomeUtil.tryFindFile(Array("", "config/"), "logback.xml")
+    if(logbackFilePath != null)
+      System.setProperty("logback.configurationFile", logbackFilePath);
 
     val configText = SomeUtil.readFileAsString(Array("", "config/"), "config.json")
     if(configText == null)
