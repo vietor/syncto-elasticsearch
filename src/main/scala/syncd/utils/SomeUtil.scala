@@ -3,19 +3,16 @@ package syncd.utils
 import java.io._
 import java.util.ArrayList
 import java.security.MessageDigest
+import java.nio.charset.StandardCharsets
 
 import scala.io._
 
 object SomeUtil {
 
-  def md5(s: String): String = {
-    val hash = MessageDigest.getInstance("MD5").digest(s.getBytes)
-    hash.map("%02x".format(_)).mkString
-  }
-
   def sha1(s: String): String = {
-    val hash = MessageDigest.getInstance("SHA1").digest(s.getBytes)
-    hash.map("%02x".format(_)).mkString
+    MessageDigest.getInstance("SHA1")
+      .digest(s.getBytes(StandardCharsets.UTF_8))
+      .map("%02x".format(_)).mkString
   }
 
   def getTimestamp(): Long = {
