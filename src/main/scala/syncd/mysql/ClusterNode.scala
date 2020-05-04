@@ -2,6 +2,7 @@ package syncd.mysql
 
 import java.util.{HashMap}
 import scala.util.Using
+import java.util.regex.Pattern
 import scala.jdk.CollectionConverters._
 
 import java.sql.{Connection}
@@ -10,10 +11,19 @@ import syncd.utils.{Validate}
 
 class MyClusterNode(config: MyConfig) {
 
-  private val keyLong = Array("tinyint", "smallint", "int", "bigint")
-  private val keyFloat = Array("float", "decimal")
-  private val keyText = Array("varchar", "text")
-  private val keyDate = Array("date", "datetime", "timestamp")
+  private val keyLong = Array("int$")
+  private val keyFloat = Array("float", "double", "decimal")
+  private val keyDate = Array("^date", "timestamp")
+  private val keyText = Array("char$", "text$")
+
+  private def isTypeKey(diagnosis: Array[String], key: String): Boolean = {
+    diagnosis.exists(x => {
+      if(x.startsWith("^") || x.endsWith("$"))
+        Pattern.matches(x, key)
+      else
+        x == key
+    })
+  }
 
   private def getColumnTypes(conn: Connection): HashMap[String, Int] = {
     val columnNames = {
@@ -39,10 +49,10 @@ class MyClusterNode(config: MyConfig) {
             }.replace("unsigned", "").trim()
 
             types.put(name, sType match {
-              case x if keyLong.contains(x) => MyConstants.TYPE_LONG
-              case x if keyFloat.contains(x) => MyConstants.TYPE_FLOAT
-              case x if keyText.contains(x) => MyConstants.TYPE_TEXT
-              case x if keyDate.contains(x) => MyConstants.TYPE_DATE
+              case x if isTypeKey(keyLong, x) => MyConstants.TYPE_LONG
+              case x if isTypeKey(keyFloat, x) => MyConstants.TYPE_FLOAT
+              case x if isTypeKey(keyDate, x) => MyConstants.TYPE_DATE
+              case x if isTypeKey(keyText, x) => MyConstants.TYPE_TEXT
               case _ => throw new IllegalStateException("Unsupport column type: " + sType + " on " + name)
             })
           }
