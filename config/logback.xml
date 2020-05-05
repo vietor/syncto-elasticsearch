@@ -1,4 +1,6 @@
 <configuration>
+    <property name="FILE_HOME" value="./logs"/>
+    <property name="FILE_NAME" value="syncto-elasticsearch"/>
     <property name="PATTERN" value="%d{HH:mm:ss.SSS} [%level] [%logger{0}] - %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
@@ -8,24 +10,22 @@
         </encoder>
     </appender>
 
-    <property name="LOG_HOME" value="./logs"/>
-    <property name="FILE_NAME" value="syncto-elasticsearch"/>
-
-    <appender name="FILE-SYNC" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/${FILE_NAME}.log</file>
+    <appender name="ROLLING-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${FILE_HOME}/${FILE_NAME}.log</file>
         <encoder>
             <charset>UTF-8</charset>
             <pattern>${PATTERN}</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/${FILE_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${FILE_HOME}/${FILE_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>7</maxHistory>
+            <totalSizeCap>300MB</totalSizeCap>
             <cleanHistoryOnStart>false</cleanHistoryOnStart>
         </rollingPolicy>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="FILE-SYNC"/>
+    <appender name="ASYNC-FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="ROLLING-FILE"/>
         <discardingThreshold>0</discardingThreshold>
     </appender>
 
@@ -36,8 +36,8 @@
     <logger name="com.alibaba.otter.canal.parse.driver" level="WARN" />
 
     <root level="DEBUG">
-        <appender-ref ref="FILE"/>
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC-FILE"/>
     </root>
 
 </configuration>
