@@ -10,9 +10,9 @@ import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.common.xcontent.XContentType
-import org.elasticsearch.action.admin.indices.get.GetIndexRequest
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest
+import org.elasticsearch.client.indices.GetIndexRequest
+import org.elasticsearch.client.indices.CreateIndexRequest
+import org.elasticsearch.client.indices.PutMappingRequest
 
 import syncd.utils._
 
@@ -46,15 +46,15 @@ class EsBulkProcessor(index: String, timer: EsBulkSyncTimer, processor: BulkProc
   }
 
   def index(id: String, doc: String): Unit = {
-    processor.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, id).source(doc, XContentType.JSON))
+    processor.add(new IndexRequest(index).id(id).source(doc, XContentType.JSON))
   }
 
   def update(id: String, doc: String): Unit = {
-    processor.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE,  id).doc(doc, XContentType.JSON))
+    processor.add(new UpdateRequest(index, id).doc(doc, XContentType.JSON))
   }
 
   def delete(id: String): Unit = {
-    processor.add(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, id))
+    processor.add(new DeleteRequest(index, id))
   }
 
   def flush(): Unit = {
@@ -74,8 +74,7 @@ class EsClusterNode(cluster: EsCluster) {
   val clusterClient  = EsClientUtils.createClient(cluster.servers)
 
   def exists(index: String): Boolean = {
-    val request = new GetIndexRequest()
-    request.indices(index);
+    val request = new GetIndexRequest(index)
     clusterClient.indices().exists(request, RequestOptions.DEFAULT);
   }
 
@@ -84,27 +83,26 @@ class EsClusterNode(cluster: EsCluster) {
     if(settings != null && !settings.isEmpty())
       request.settings(settings, XContentType.JSON)
     if(mapping != null && !mapping.isEmpty())
-      request.mapping(EsConstants.DEFAULT_TYPE, mapping, XContentType.JSON)
+      request.mapping(mapping, XContentType.JSON)
     clusterClient.indices().create(request, RequestOptions.DEFAULT)
   }
 
   def modifyMapping(index: String, mapping: String): Unit = {
     val request = new PutMappingRequest(index)
-    request.`type`(EsConstants.DEFAULT_TYPE)
     request.source(mapping, XContentType.JSON)
     clusterClient.indices().putMapping(request, RequestOptions.DEFAULT)
   }
 
   def directIndex(index: String, id: String, doc: String): Unit = {
-    clusterClient.index(new IndexRequest(index, EsConstants.DEFAULT_TYPE, id).source(doc, XContentType.JSON), RequestOptions.DEFAULT)
+    clusterClient.index(new IndexRequest(index).id(id).source(doc, XContentType.JSON), RequestOptions.DEFAULT)
   }
 
   def directUpdate(index: String, id: String, doc: String): Unit = {
-    clusterClient.update(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, id).doc(doc, XContentType.JSON), RequestOptions.DEFAULT)
+    clusterClient.update(new UpdateRequest(index, id).doc(doc, XContentType.JSON), RequestOptions.DEFAULT)
   }
 
   def directDelete(index: String, id: String): Unit = {
-    clusterClient.delete(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, id), RequestOptions.DEFAULT)
+    clusterClient.delete(new DeleteRequest(index, id), RequestOptions.DEFAULT)
   }
 
   def bulkRequest(index: String, requests: List[EsRequest]): BulkResponse = {
@@ -112,11 +110,11 @@ class EsClusterNode(cluster: EsCluster) {
     requests.forEach(row => {
       row.op match {
         case EsConstants.OP_INDEX =>
-          request.add(new IndexRequest(index, EsConstants.DEFAULT_TYPE, row.id).source(row.doc, XContentType.JSON))
+          request.add(new IndexRequest(index).id(row.id).source(row.doc, XContentType.JSON))
         case EsConstants.OP_UPDATE =>
-          request.add(new UpdateRequest(index, EsConstants.DEFAULT_TYPE, row.id).doc(row.doc, XContentType.JSON).retryOnConflict(3).docAsUpsert(true))
+          request.add(new UpdateRequest(index, row.id).doc(row.doc, XContentType.JSON).retryOnConflict(3).docAsUpsert(true))
         case EsConstants.OP_DELETE =>
-          request.add(new DeleteRequest(index, EsConstants.DEFAULT_TYPE, row.id))
+          request.add(new DeleteRequest(index, row.id))
       }
     })
     clusterClient.bulk(request, RequestOptions.DEFAULT)
