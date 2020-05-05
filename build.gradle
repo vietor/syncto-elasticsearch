@@ -25,7 +25,7 @@ dependencies {
     compile 'mysql:mysql-connector-java:8.0.19'
     compile 'com.alibaba.otter:canal.parse:1.1.4'
     compile 'org.mongodb:mongo-java-driver:3.10.1'
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.4.2'
 }
 
 mainClassName = "RunMain"
