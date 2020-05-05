@@ -2,7 +2,7 @@ package syncd.mysql
 
 import java.util.{HashMap}
 import scala.util.Using
-import java.util.regex.Pattern
+import scala.util.matching.Regex
 import scala.jdk.CollectionConverters._
 
 import java.sql.{Connection}
@@ -11,18 +11,13 @@ import syncd.utils.{Validate}
 
 class MyClusterNode(config: MyConfig) {
 
-  private val keyLong = Array("int$")
-  private val keyFloat = Array("float", "double", "decimal")
-  private val keyDate = Array("^date", "timestamp")
-  private val keyText = Array("char$", "text$", "enum", "set")
+  private val keyLong = Array("(tiny|small|medium|big)?int".r)
+  private val keyFloat = Array("float".r, "double".r, "decimal".r)
+  private val keyDate = Array("date(time)?".r, "timestamp".r)
+  private val keyText = Array("(var)?char".r, "(tiny|medium|long)?text".r, "enum".r, "set".r)
 
-  private def isTypeKey(diagnosis: Array[String], key: String): Boolean = {
-    diagnosis.exists(x => {
-      if(x.startsWith("^") || x.endsWith("$"))
-        Pattern.matches(x, key)
-      else
-        x == key
-    })
+  private def isTypeKey(diagnosis: Array[Regex], key: String): Boolean = {
+    diagnosis.exists(x => x.matches(key))
   }
 
   private def getColumnTypes(conn: Connection): HashMap[String, Int] = {
