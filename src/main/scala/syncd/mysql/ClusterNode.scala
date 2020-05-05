@@ -14,7 +14,7 @@ class MyClusterNode(config: MyConfig) {
   private val keyLong = Array("int$")
   private val keyFloat = Array("float", "double", "decimal")
   private val keyDate = Array("^date", "timestamp")
-  private val keyText = Array("char$", "text$")
+  private val keyText = Array("char$", "text$", "enum", "set")
 
   private def isTypeKey(diagnosis: Array[String], key: String): Boolean = {
     diagnosis.exists(x => {
