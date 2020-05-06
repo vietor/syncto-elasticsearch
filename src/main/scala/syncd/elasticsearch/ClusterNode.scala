@@ -71,7 +71,7 @@ class EsBulkProcessor(index: String, timer: EsBulkSyncTimer, processor: BulkProc
 }
 
 class EsClusterNode(cluster: EsCluster) {
-  val clusterClient  = EsClientUtils.createClient(cluster.servers)
+  val clusterClient  = EsClientUtils.createClient(cluster.servers, cluster.auth)
 
   def exists(index: String): Boolean = {
     val request = new GetIndexRequest()
