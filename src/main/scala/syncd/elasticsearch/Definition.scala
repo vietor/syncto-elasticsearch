@@ -4,12 +4,18 @@ import java.util.{ArrayList}
 
 import syncd.utils.{Validate, JsonUtil}
 
+case class EsAuth(
+  username: String,
+  password: String
+)
+
 case class EsServer(
   host: String,
   port: Int
 )
 
 case class EsCluster(
+  auth: EsAuth = null,
   servers: ArrayList[EsServer]
 )
 
@@ -41,6 +47,16 @@ object EsValidator {
     }
   }
 
+  private def validate(auth: EsAuth): Unit = {
+    val PREFIX = "[elasticsearch.cluster.auth] bad field: "
+
+    if(Validate.isNullOrBlank(auth.username))
+      throw new IllegalStateException(PREFIX + "username")
+
+    if(Validate.isNullOrBlank(auth.password))
+      throw new IllegalStateException(PREFIX + "password")
+  }
+
   private def validate(server: EsServer): Unit = {
     val PREFIX = "[elasticsearch.cluster.servers?] bad field: "
 
@@ -53,6 +69,9 @@ object EsValidator {
 
   private def validate(cluster: EsCluster): Unit = {
     val PREFIX = "[elasticsearch.cluster] bad field: "
+
+    if(cluster.auth != null)
+      validate(cluster.auth)
 
     if(Validate.isNullOrEmpty(cluster.servers))
       throw new IllegalStateException(PREFIX + "servers")
